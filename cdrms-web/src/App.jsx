@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { Users, FolderOpen, User } from "lucide-react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import StudentList from "./components/StudentList";
@@ -18,6 +19,9 @@ import { auth, ROLES } from "./services/auth";
 import "./App.css";
 
 export default function App() {
+  // Mobile active tab state: "students" | "sidebar" | "overview"
+  const [mobileTab, setMobileTab] = useState("students");
+
   // Authentication state
   const [currentUser, setCurrentUser] = useState(() => auth.getCurrentUser());
 
@@ -317,70 +321,112 @@ export default function App() {
 
       {/* 2. MAIN 3-COLUMN BODY */}
       <main className="main-workspace">
+        {/* MOBILE VIEW SWITCHER (visible only on screens <= 768px) */}
+        <div className="mobile-view-tabs-bar">
+          <button
+            type="button"
+            className={`mobile-tab-btn ${mobileTab === "students" ? "active" : ""}`}
+            onClick={() => setMobileTab("students")}
+          >
+            <Users size={14} />
+            <span>Students ({filteredStudents.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-tab-btn ${mobileTab === "sidebar" ? "active" : ""}`}
+            onClick={() => setMobileTab("sidebar")}
+          >
+            <FolderOpen size={14} />
+            <span>Filter & Batches</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-tab-btn ${mobileTab === "overview" ? "active" : ""}`}
+            onClick={() => setMobileTab("overview")}
+          >
+            <User size={14} />
+            <span>Student Biodata</span>
+          </button>
+        </div>
+
         {/* Left Column: Records Tree */}
-        <Sidebar
-          batches={batches}
-          selectedBatch={selectedBatch}
-          onSelectBatch={setSelectedBatch}
-          activeProgram={activeProgram}
-          onSelectProgram={setActiveProgram}
-          totalStudents={students.length}
-          fullTimeCount={fullTimeCount}
-          partTimeCount={partTimeCount}
-          coursesCount={courses.length}
-          cloudConnected={cloudConnected}
-          currentUser={currentUser}
-        />
+        <div className={`workspace-col-sidebar ${mobileTab === "sidebar" ? "mobile-show" : "mobile-hide"}`}>
+          <Sidebar
+            batches={batches}
+            selectedBatch={selectedBatch}
+            onSelectBatch={(b) => {
+              setSelectedBatch(b);
+              setMobileTab("students");
+            }}
+            activeProgram={activeProgram}
+            onSelectProgram={(p) => {
+              setActiveProgram(p);
+              setMobileTab("students");
+            }}
+            totalStudents={students.length}
+            fullTimeCount={fullTimeCount}
+            partTimeCount={partTimeCount}
+            coursesCount={courses.length}
+            cloudConnected={cloudConnected}
+            currentUser={currentUser}
+          />
+        </div>
 
         {/* Center Column: Main Student Table */}
-        <StudentList
-          students={filteredStudents}
-          selectedStudentId={selectedStudentId}
-          onSelectStudent={setSelectedStudentId}
-          onEditStudent={(s) => {
-            setStudentToEdit(s);
-            setIsStudentModalOpen(true);
-          }}
-          onDeleteStudent={handleDeleteStudent}
-          onOpenWorksheet={(id) => {
-            setSelectedStudentId(id);
-            setWorksheetStudentId(id);
-            setIsWorksheetOpen(true);
-          }}
-          onOpenTranscript={(id) => {
-            setSelectedStudentId(id);
-            setTranscriptStudentId(id);
-            setIsTranscriptOpen(true);
-          }}
-          onOpenAddStudent={() => {
-            setStudentToEdit(null);
-            setIsStudentModalOpen(true);
-          }}
-          activeProgram={activeProgram}
-          onSelectProgram={setActiveProgram}
-          selectedBatch={selectedBatch}
-          searchTerm={searchTerm}
-          currentUser={currentUser}
-        />
+        <div className={`workspace-col-students ${mobileTab === "students" ? "mobile-show" : "mobile-hide"}`}>
+          <StudentList
+            students={filteredStudents}
+            selectedStudentId={selectedStudentId}
+            onSelectStudent={(id) => {
+              setSelectedStudentId(id);
+            }}
+            onEditStudent={(s) => {
+              setStudentToEdit(s);
+              setIsStudentModalOpen(true);
+            }}
+            onDeleteStudent={handleDeleteStudent}
+            onOpenWorksheet={(id) => {
+              setSelectedStudentId(id);
+              setWorksheetStudentId(id);
+              setIsWorksheetOpen(true);
+            }}
+            onOpenTranscript={(id) => {
+              setSelectedStudentId(id);
+              setTranscriptStudentId(id);
+              setIsTranscriptOpen(true);
+            }}
+            onOpenAddStudent={() => {
+              setStudentToEdit(null);
+              setIsStudentModalOpen(true);
+            }}
+            activeProgram={activeProgram}
+            onSelectProgram={setActiveProgram}
+            selectedBatch={selectedBatch}
+            searchTerm={searchTerm}
+            currentUser={currentUser}
+          />
+        </div>
 
         {/* Right Column: Quick Overview */}
-        <StudentOverview
-          student={currentStudent}
-          results={results}
-          courses={courses}
-          onOpenTranscript={(id) => {
-            setTranscriptStudentId(id);
-            setIsTranscriptOpen(true);
-          }}
-          onOpenWorksheet={(id) => {
-            setWorksheetStudentId(id);
-            setIsWorksheetOpen(true);
-          }}
-          onEditStudent={(s) => {
-            setStudentToEdit(s);
-            setIsStudentModalOpen(true);
-          }}
-        />
+        <div className={`workspace-col-overview ${mobileTab === "overview" ? "mobile-show" : "mobile-hide"}`}>
+          <StudentOverview
+            student={currentStudent}
+            results={results}
+            courses={courses}
+            onOpenTranscript={(id) => {
+              setTranscriptStudentId(id);
+              setIsTranscriptOpen(true);
+            }}
+            onOpenWorksheet={(id) => {
+              setWorksheetStudentId(id);
+              setIsWorksheetOpen(true);
+            }}
+            onEditStudent={(s) => {
+              setStudentToEdit(s);
+              setIsStudentModalOpen(true);
+            }}
+          />
+        </div>
       </main>
 
       {/* 3. MODALS */}

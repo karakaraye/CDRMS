@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   GraduationCap,
   PlusCircle,
@@ -15,6 +15,8 @@ import {
   ShieldAlert,
   History,
   KeyRound,
+  Menu,
+  X,
 } from "lucide-react";
 import { ROLES } from "../services/auth";
 
@@ -37,6 +39,7 @@ export default function Navbar({
   onOpenOfficerAccounts,
   pendingQueriesCount = 0,
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showQueriesBtn =
     currentUser?.role === ROLES.HOD ||
     currentUser?.role === ROLES.SUPER_FT ||
@@ -212,7 +215,194 @@ export default function Navbar({
             </button>
           </>
         )}
+
+        {/* MOBILE MENU TOGGLE BUTTON */}
+        <button
+          type="button"
+          className="nav-mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle navigation menu"
+        >
+          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </div>
+
+      {/* MOBILE ACTIONS DRAWER */}
+      {mobileMenuOpen && (
+        <div className="mobile-nav-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-nav-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-drawer-header">
+              <div className="mobile-drawer-title">Navigation & Quick Actions</div>
+              <button type="button" className="mobile-drawer-close" onClick={() => setMobileMenuOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {currentUser && (
+              <div className="mobile-drawer-profile">
+                <div className="officer-avatar-icon">
+                  <UserCheck size={18} />
+                </div>
+                <div className="officer-text-group">
+                  <span className="officer-display-name">{currentUser.roleTitle}</span>
+                  <span className="officer-role-title">
+                    {currentUser.department || "University of Port Harcourt"} • {currentUser.program || "Full-Time"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="mobile-drawer-actions">
+              <button
+                type="button"
+                className="mobile-action-btn primary"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAddStudent();
+                }}
+              >
+                <PlusCircle size={17} />
+                <span>New Student (Ctrl+N)</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-action-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenWorksheet();
+                }}
+              >
+                <FileSpreadsheet size={17} />
+                <span>Results Worksheet</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-action-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenTranscript();
+                }}
+              >
+                <FileText size={17} />
+                <span>Academic Transcript</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-action-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenCourses();
+                }}
+              >
+                <BookOpen size={17} />
+                <span>Course Catalogue</span>
+              </button>
+
+              {showQueriesBtn && (
+                <button
+                  type="button"
+                  className={`mobile-action-btn ${pendingQueriesCount > 0 ? "has-pending" : ""}`}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenQueries();
+                  }}
+                >
+                  <ShieldAlert size={17} />
+                  <span>Result Audit & Queries</span>
+                  {pendingQueriesCount > 0 && (
+                    <span className="nav-pending-badge" style={{ marginLeft: "auto" }}>
+                      {pendingQueriesCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {currentUser?.role === ROLES.HOD && (
+                <>
+                  <button
+                    type="button"
+                    className="mobile-action-btn"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenAuditTrail();
+                    }}
+                  >
+                    <History size={17} />
+                    <span>Executive Audit Trail</span>
+                  </button>
+
+                  {onOpenOfficerAccounts && (
+                    <button
+                      type="button"
+                      className="mobile-action-btn"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenOfficerAccounts();
+                      }}
+                    >
+                      <KeyRound size={17} />
+                      <span>Officer Accounts & Passwords</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              <button
+                type="button"
+                className="mobile-action-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenCloudSettings();
+                }}
+              >
+                <Cloud size={17} />
+                <span>Cloud Settings ({cloudConnected ? "Online" : "Offline"})</span>
+              </button>
+
+              {onOpenChangePassword && (
+                <button
+                  type="button"
+                  className="mobile-action-btn"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenChangePassword();
+                  }}
+                >
+                  <KeyRound size={17} />
+                  <span>Security & Change Password</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="mobile-action-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onRefresh();
+                }}
+              >
+                <RefreshCw size={17} />
+                <span>Refresh Records</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-action-btn logout"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onLogout();
+                }}
+              >
+                <LogOut size={17} />
+                <span>Switch Department / Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
