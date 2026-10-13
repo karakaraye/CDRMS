@@ -1,0 +1,27 @@
+# Environment & Secrets (Crucial: Never commit database passwords)
+.env
+.env.*
+!.env.example
+
+# Node / Web App
+node_modules/
+cdrms-web/node_modules/
+cdrms-web/dist/
+dist/
+build/
+.oxlint-cache
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+Cdrms.exe
+*.egg-info/
+.pytest_cache/
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
