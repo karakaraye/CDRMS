@@ -812,19 +812,27 @@
 /* ==========================================================================
    MODALS & DIALOGS
    ========================================================================== */
-.modal-overlay {
+.modal-overlay,
+.modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.modal-dialog {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-card {
@@ -2841,7 +2849,7 @@
 /* STAGE 1: DEPARTMENT CARDS GRID */
 .department-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
   gap: 20px;
 }
 
@@ -3175,7 +3183,7 @@
 
 .officers-list-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 14px;
 }
 
@@ -4454,41 +4462,50 @@
   height: 100%;
 }
 
-/* 2. COMPACT LAPTOPS & NOTEBOOKS (1024px to 1366px) */
-@media (max-width: 1366px) {
+/* 2. COMPACT LAPTOPS & NOTEBOOKS (1024px to 1440px) */
+@media (max-width: 1440px) {
   .navbar {
     padding: 0 12px;
   }
 
   .nav-center {
-    max-width: 260px;
-    margin: 0 10px;
+    max-width: 240px;
+    margin: 0 8px;
   }
 
   .brand-subtitle {
-    max-width: 200px;
+    max-width: 180px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .nav-right {
-    gap: 6px;
+    gap: 5px;
   }
 
-  .nav-right .btn-secondary span {
+  .nav-right .btn span {
     font-size: 11px;
   }
 
+  .nav-officer-profile .officer-role-title {
+    display: none;
+  }
+
   .nav-officer-profile {
-    padding: 3px 8px;
+    padding: 3px 6px;
+  }
+
+  .nav-logout-btn span {
+    font-size: 11px;
   }
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .nav-right .nav-audit-btn span,
   .nav-right .nav-pwd-btn span,
-  .nav-right .nav-officers-btn span {
+  .nav-right .nav-officers-btn span,
+  .nav-right .nav-query-btn span {
     display: none;
   }
 
@@ -4496,12 +4513,23 @@
     padding: 5px 8px;
   }
 
+  .nav-center {
+    max-width: 180px;
+    margin: 0 6px;
+  }
+
   .cloud-status-badge {
-    padding: 5px 9px;
+    padding: 5px 8px;
   }
 
   .cloud-status-badge span {
     font-size: 11px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .nav-right .btn-secondary span {
+    display: none;
   }
 }
 
@@ -4521,7 +4549,7 @@
   }
 
   .nav-center {
-    max-width: 200px;
+    max-width: 180px;
   }
 
   .nav-right .btn-secondary span {
@@ -4532,8 +4560,17 @@
     padding: 6px 10px;
   }
 
+  .department-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+
   .dept-portal-cards-grid {
     grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .division-cards-grid {
+    gap: 16px !important;
   }
 }
 
@@ -4836,7 +4873,8 @@
   }
 
   /* Full Screen Modals on Mobile Phones */
-  .modal-overlay {
+  .modal-overlay,
+  .modal-backdrop {
     padding: 0 !important;
     align-items: stretch !important;
   }
@@ -4846,7 +4884,10 @@
   .modal-lg,
   .modal-sm,
   .modal-transcript-card,
-  .query-center-modal {
+  .query-center-modal,
+  .change-pwd-modal,
+  .forgot-pwd-modal,
+  .modal-dialog {
     width: 100vw !important;
     max-width: 100vw !important;
     height: 100vh !important;
@@ -4857,7 +4898,9 @@
     flex-direction: column !important;
   }
 
-  .modal-header {
+  .modal-header,
+  .change-pwd-header,
+  .forgot-pwd-header {
     position: sticky !important;
     top: 0 !important;
     z-index: 20 !important;
@@ -4866,14 +4909,19 @@
 
   .modal-body-padding,
   .modal-table-scroll,
-  .student-form-scroll {
+  .student-form-scroll,
+  .change-pwd-body,
+  .forgot-pwd-body,
+  .modal-body {
     flex: 1 !important;
     overflow-y: auto !important;
-    padding: 12px !important;
+    padding: 14px !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
-  .modal-footer {
+  .modal-footer,
+  .forgot-pwd-footer,
+  .change-pwd-footer {
     position: sticky !important;
     bottom: 0 !important;
     z-index: 20 !important;
@@ -4901,10 +4949,14 @@
   }
 
   /* Gateway & Login Page Responsive Rules */
+  .gateway-header {
+    padding: 12px 14px !important;
+  }
+
   .gateway-header-inner {
     flex-direction: column !important;
     align-items: flex-start !important;
-    gap: 12px !important;
+    gap: 10px !important;
   }
 
   .gateway-brand {
@@ -4924,13 +4976,51 @@
     display: none !important;
   }
 
-  .gateway-content {
-    padding: 20px 14px !important;
+  .gateway-nav-bar {
+    padding: 8px 12px !important;
   }
 
+  .gateway-nav-inner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .gateway-back-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .gateway-main-container,
+  .gateway-content {
+    padding: 16px 12px 32px !important;
+  }
+
+  .gateway-section-intro {
+    margin-bottom: 18px !important;
+    text-align: left !important;
+  }
+
+  .gateway-section-intro h2 {
+    font-size: 20px !important;
+  }
+
+  .gateway-section-intro p {
+    font-size: 13px !important;
+  }
+
+  .department-cards-grid,
   .dept-portal-cards-grid {
     grid-template-columns: 1fr !important;
-    gap: 14px !important;
+    gap: 12px !important;
+  }
+
+  .dept-portal-card {
+    padding: 16px !important;
+  }
+
+  .dept-card-name {
+    font-size: 16px !important;
   }
 
   .division-cards-grid {
@@ -4938,16 +5028,23 @@
     gap: 14px !important;
   }
 
-  .officer-cards-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
+  .division-card {
+    padding: 20px 16px !important;
   }
 
+  .gateway-auth-layout,
   .officer-auth-panel {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
 
+  .officers-list-grid,
+  .officer-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .auth-card,
   .login-form-card {
     padding: 20px 16px !important;
     border-radius: 12px !important;
@@ -4958,6 +5055,26 @@
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     width: 100% !important;
+  }
+
+  table.data-table {
+    min-width: 680px;
+  }
+}
+
+/* 5. ULTRA-COMPACT PHONES (<= 380px) */
+@media (max-width: 380px) {
+  .mobile-tab-btn {
+    padding: 8px 4px !important;
+    font-size: 11px !important;
+  }
+
+  .mobile-tab-btn span {
+    font-size: 10.5px !important;
+  }
+
+  .brand-title {
+    font-size: 13px !important;
   }
 }
 
