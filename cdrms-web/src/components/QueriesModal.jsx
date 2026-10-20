@@ -227,8 +227,6 @@ export default function QueriesModal({
     reason: "",
   });
 
-  if (!isOpen) return null;
-
   const pendingQueries = queries.filter((q) => q.status === "PENDING");
   const pastQueries = queries.filter((q) => q.status !== "PENDING");
 
@@ -392,6 +390,8 @@ export default function QueriesModal({
       );
     });
   }, [auditLogs, auditSearchQuery, auditActionFilter]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>

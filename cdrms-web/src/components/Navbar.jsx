@@ -37,6 +37,7 @@ export default function Navbar({
   onOpenAuditTrail,
   onOpenChangePassword,
   onOpenOfficerAccounts,
+  onOpenExcelUpload,
   pendingQueriesCount = 0,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -100,6 +101,15 @@ export default function Navbar({
         >
           <FileSpreadsheet size={16} />
           <span>Worksheet</span>
+        </button>
+
+        <button
+          className="btn btn-secondary nav-excel-btn"
+          onClick={onOpenExcelUpload}
+          title="Process Lecturer Results from Excel Broadsheet"
+        >
+          <FileSpreadsheet size={16} />
+          <span>Import Results</span>
         </button>
 
         <button
@@ -275,6 +285,18 @@ export default function Navbar({
               >
                 <FileSpreadsheet size={17} />
                 <span>Results Worksheet</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-action-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenExcelUpload();
+                }}
+              >
+                <FileSpreadsheet size={17} />
+                <span>Import Results (Excel)</span>
               </button>
 
               <button

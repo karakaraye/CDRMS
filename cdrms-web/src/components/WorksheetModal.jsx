@@ -28,6 +28,7 @@ export default function WorksheetModal({
   onSaveResults,
   currentUser,
   onOpenQueryModal,
+  onOpenExcelUpload,
 }) {
   const [selectedStudentId, setSelectedStudentId] = useState("");
 
@@ -610,6 +611,32 @@ export default function WorksheetModal({
               {studentProgram === "Part-Time" && <option value="Third">Third Term</option>}
             </select>
           </div>
+
+          {onOpenExcelUpload && (
+            <div className="filter-group" style={{ marginLeft: "auto", alignSelf: "flex-end" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onOpenExcelUpload}
+                style={{
+                  height: "36px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  color: "#059669",
+                  background: "#ecfdf5",
+                  borderColor: "#a7f3d0",
+                  cursor: "pointer",
+                }}
+                title="Batch process broadsheet results from Excel file"
+              >
+                <FileSpreadsheet size={15} />
+                <span>Upload Excel Results</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {errorMessage && (

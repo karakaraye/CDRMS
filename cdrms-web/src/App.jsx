@@ -12,6 +12,7 @@ import CloudSettingsModal from "./components/CloudSettingsModal";
 import LoginPage from "./components/LoginPage";
 import QueriesModal from "./components/QueriesModal";
 import ChangePasswordModal from "./components/ChangePasswordModal";
+import ExcelResultUploadModal from "./components/ExcelResultUploadModal";
 
 import { db } from "./services/db";
 import { testCloudConnection } from "./services/supabase";
@@ -61,6 +62,7 @@ export default function App() {
   const [isQueriesModalOpen, setIsQueriesModalOpen] = useState(false);
   const [queriesModalTab, setQueriesModalTab] = useState("list");
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
 
   // Check initial cloud connection on mount
   useEffect(() => {
@@ -316,6 +318,7 @@ export default function App() {
           setQueriesModalTab("security");
           setIsQueriesModalOpen(true);
         }}
+        onOpenExcelUpload={() => setIsExcelUploadOpen(true)}
         pendingQueriesCount={pendingQueriesCount}
       />
 
@@ -464,6 +467,10 @@ export default function App() {
             setIsWorksheetOpen(false);
             setIsQueriesModalOpen(true);
           }}
+          onOpenExcelUpload={() => {
+            setIsWorksheetOpen(false);
+            setIsExcelUploadOpen(true);
+          }}
         />
       )}
 
@@ -521,6 +528,19 @@ export default function App() {
             setIsChangePasswordOpen(false);
           }}
           onLogout={handleLogout}
+        />
+      )}
+
+      {/* Excel Broadsheet Result Processor Modal */}
+      {isExcelUploadOpen && (
+        <ExcelResultUploadModal
+          isOpen={isExcelUploadOpen}
+          onClose={() => setIsExcelUploadOpen(false)}
+          students={students}
+          courses={courses}
+          results={results}
+          currentUser={currentUser}
+          onResultsSaved={refreshData}
         />
       )}
     </div>

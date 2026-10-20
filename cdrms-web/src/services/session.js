@@ -87,3 +87,24 @@ export function getStudentSessionOptions(student, currentLevel = "100") {
     options: sessions,
   };
 }
+
+/**
+ * Calculates the exact academic level (100, 200, 300, 400, 500, 600)
+ * that a student was in during a given academic session (e.g. "2023/2024").
+ */
+export function getLevelForStudentSession(student, session) {
+  if (!student) return "100";
+  const entryYear = extractEntryYear(student);
+  const match = String(session || "").match(/(\d{4})/);
+  if (!match) return "100";
+  const sessionStartYear = parseInt(match[1], 10);
+  const diff = sessionStartYear - entryYear;
+
+  if (diff <= 0) return "100";
+  if (diff === 1) return "200";
+  if (diff === 2) return "300";
+  if (diff === 3) return "400";
+  if (diff === 4) return "500";
+  return "600";
+}
+
