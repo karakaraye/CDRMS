@@ -104,7 +104,7 @@ export default function Navbar({
         </button>
 
         <button
-          className="btn btn-secondary nav-excel-btn"
+          className="btn btn-secondary"
           onClick={onOpenExcelUpload}
           title="Process Lecturer Results from Excel Broadsheet"
         >
@@ -192,16 +192,14 @@ export default function Navbar({
         {currentUser && (
           <>
             <div className="divider-vertical" />
-            <div className="nav-officer-profile" title={`Role: ${currentUser.roleTitle}`}>
+            <div
+              className="nav-officer-profile"
+              title={`Role: ${currentUser.roleTitle} | ${currentUser.department || "CDRMS"} (${currentUser.program || "Authorized Session"})`}
+            >
               <div className="officer-avatar-icon">
-                <UserCheck size={15} />
+                <UserCheck size={14} />
               </div>
-              <div className="officer-text-group">
-                <span className="officer-display-name">{currentUser.roleTitle}</span>
-                <span className="officer-role-title">
-                  {currentUser.program || "Authorized Session"}
-                </span>
-              </div>
+              <span className="officer-display-name">{currentUser.roleTitle}</span>
             </div>
 
             {onOpenChangePassword && (
@@ -221,7 +219,7 @@ export default function Navbar({
               title="Sign Out / Switch Department & Role"
             >
               <LogOut size={14} />
-              <span>Switch Dept / Sign Out</span>
+              <span>Sign Out</span>
             </button>
           </>
         )}

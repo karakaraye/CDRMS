@@ -15,72 +15,90 @@
    NAVBAR
    ========================================================================== */
 .navbar {
-  height: 52px;
+  height: 50px;
   background: var(--primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 10px;
   box-shadow: var(--shadow-md);
   color: #ffffff;
   z-index: 100;
   user-select: none;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .nav-left {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .brand-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .brand-logo {
-  height: 38px;
-  width: 38px;
+  height: 32px;
+  width: 32px;
   border-radius: var(--radius-sm);
   background: #ffffff;
   padding: 2px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .brand-text {
   display: flex;
   flex-direction: column;
+  line-height: 1.15;
 }
 
 .brand-title {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.5px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .cloud-tag {
-  font-size: 10px;
+  font-size: 9px;
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: var(--radius-pill);
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .brand-subtitle {
-  font-size: 11px;
+  font-size: 10.5px;
   color: rgba(255, 255, 255, 0.85);
-  font-weight: 400;
+  font-weight: 500;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-center {
-  flex: 1;
-  max-width: 380px;
-  margin: 0 20px;
+  flex: 0 1 200px;
+  max-width: 220px;
+  min-width: 90px;
+  margin: 0 8px;
+  transition: all var(--transition-fast);
+}
+
+.nav-center:focus-within {
+  max-width: 280px;
+  flex: 0 1 280px;
 }
 
 .search-bar {
@@ -88,35 +106,57 @@
   align-items: center;
   background: rgba(255, 255, 255, 0.95);
   border-radius: var(--radius-md);
-  padding: 4px 10px;
+  padding: 3px 8px;
   position: relative;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  height: 30px;
 }
 
 .search-icon {
   color: var(--text-muted);
-  margin-right: 6px;
+  margin-right: 5px;
+  flex-shrink: 0;
 }
 
 .search-bar input {
   border: none;
   background: transparent;
   width: 100%;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-main);
   outline: none;
 }
 
 .search-clear {
   color: var(--text-muted);
-  font-size: 12px;
-  padding: 2px 4px;
+  font-size: 11px;
+  padding: 1px 3px;
+  line-height: 1;
 }
 
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.nav-right .btn {
+  height: 30px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border-radius: var(--radius-md);
+}
+
+.nav-right .btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .cloud-status-badge {
@@ -1639,21 +1679,27 @@
    NAVBAR OFFICER PROFILE & RBAC BUTTONS
    ========================================================================== */
 .nav-officer-profile {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  gap: 6px;
+  height: 30px;
+  padding: 0 9px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-pill);
+  max-width: 175px;
+  white-space: nowrap;
+  flex-shrink: 1;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .officer-avatar-icon {
-  width: 28px;
-  height: 28px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: var(--accent);
-  color: #0f172a;
+  background: #ffffff;
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1663,26 +1709,33 @@
 .officer-text-group {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: 1.15;
+  overflow: hidden;
 }
 
 .officer-display-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .officer-role-title {
-  font-size: 10px;
-  color: #94a3b8;
+  font-size: 9.5px;
+  color: #cbd5e1;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-query-btn {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .nav-pending-badge {
@@ -1690,22 +1743,31 @@
   color: #ffffff;
   font-size: 10px;
   font-weight: 800;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 10px;
   line-height: 1;
 }
 
 .nav-logout-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: #fca5a5 !important;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #dc2626 !important;
+  background: #ffffff !important;
+  border: 1px solid #fecaca !important;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .nav-logout-btn:hover {
-  background: rgba(239, 68, 68, 0.15) !important;
-  color: #ef4444 !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border-color: #f87171 !important;
 }
 
 /* ==========================================================================
@@ -4462,72 +4524,58 @@
   height: 100%;
 }
 
-/* 2. COMPACT LAPTOPS & NOTEBOOKS (1024px to 1440px) */
-@media (max-width: 1440px) {
+/* 2. COMPACT LAPTOPS & NOTEBOOKS (1024px to 1550px) */
+@media (max-width: 1550px) {
+  .nav-right .nav-audit-btn span,
+  .nav-right .nav-officers-btn span {
+    display: none;
+  }
+}
+
+@media (max-width: 1380px) {
   .navbar {
-    padding: 0 12px;
+    padding: 0 8px;
   }
 
   .nav-center {
-    max-width: 240px;
-    margin: 0 8px;
+    max-width: 160px;
+    min-width: 80px;
+    margin: 0 6px;
   }
 
   .brand-subtitle {
-    max-width: 180px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: 130px;
   }
 
-  .nav-right {
-    gap: 5px;
-  }
-
-  .nav-right .btn span {
-    font-size: 11px;
-  }
-
-  .nav-officer-profile .officer-role-title {
+  .cloud-status-badge span,
+  .nav-right .nav-pwd-btn span {
     display: none;
   }
 
   .nav-officer-profile {
-    padding: 3px 6px;
+    max-width: 140px;
   }
 
-  .nav-logout-btn span {
-    font-size: 11px;
+  .nav-right {
+    gap: 4px;
   }
 }
 
-@media (max-width: 1280px) {
-  .nav-right .nav-audit-btn span,
-  .nav-right .nav-pwd-btn span,
-  .nav-right .nav-officers-btn span,
+@media (max-width: 1220px) {
   .nav-right .nav-query-btn span {
     display: none;
   }
 
-  .nav-right .btn {
-    padding: 5px 8px;
-  }
-
   .nav-center {
-    max-width: 180px;
-    margin: 0 6px;
+    max-width: 120px;
   }
 
-  .cloud-status-badge {
-    padding: 5px 8px;
-  }
-
-  .cloud-status-badge span {
-    font-size: 11px;
+  .nav-officer-profile {
+    max-width: 115px;
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1080px) {
   .nav-right .btn-secondary span {
     display: none;
   }
@@ -5943,16 +5991,7 @@
   margin-top: 14px;
 }
 
-.nav-excel-btn {
-  background: rgba(16, 185, 129, 0.12) !important;
-  color: #059669 !important;
-  border-color: rgba(16, 185, 129, 0.3) !important;
-}
-
-.nav-excel-btn:hover {
-  background: rgba(16, 185, 129, 0.22) !important;
-  color: #047857 !important;
-}
+/* Import results button now uses uniform white btn-secondary styles */
 
 .session-target-pill {
   display: inline-flex;
