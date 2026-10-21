@@ -195,21 +195,10 @@ export default function StudentList({
                     <p>
                       {searchTerm
                         ? `No results matching "${searchTerm}". Try a different keyword.`
-                        : allStudentsCount > 0 && selectedDepartmentFilter !== "all"
-                        ? `There are no students under this department filter, but ${allStudentsCount} student(s) exist across other faculty departments.`
-                        : "There are no students in this category yet."}
+                        : "There are no student records in this department yet."}
                     </p>
                     <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "12px", flexWrap: "wrap" }}>
-                      {allStudentsCount > 0 && selectedDepartmentFilter !== "all" && onSwitchToAllDepartments && (
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={onSwitchToAllDepartments}
-                        >
-                          View All Departments ({allStudentsCount})
-                        </button>
-                      )}
-                      <button className="btn btn-secondary btn-sm" onClick={onOpenAddStudent}>
+                      <button className="btn btn-primary btn-sm" onClick={onOpenAddStudent}>
                         <UserPlus size={14} /> Add Student
                       </button>
                     </div>

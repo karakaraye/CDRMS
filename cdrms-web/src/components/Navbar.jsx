@@ -17,7 +17,6 @@ import {
   KeyRound,
   Menu,
   X,
-  Building,
 } from "lucide-react";
 import { ROLES } from "../services/auth";
 
@@ -66,54 +65,10 @@ export default function Navbar({
           <div className="brand-text">
             <div className="brand-title">CDRMS <span className="cloud-tag">CLOUD</span></div>
             <div className="brand-subtitle">
-              {currentUser?.departmentId === "all" || selectedDepartmentFilter === "all" ? (
-                <span className="brand-all-badge">Faculty-Wide View</span>
-              ) : (
-                <span>{currentUser?.department || "University of Port Harcourt"}</span>
-              )}
+              <span>{currentUser?.department || "University of Port Harcourt"}</span>
             </div>
           </div>
         </div>
-
-        {departments && departments.length > 0 && onSelectDepartmentFilter && (
-          <div className="navbar-dept-picker">
-            <Building size={14} className="dept-picker-icon" />
-            <select
-              className="dept-select-input"
-              value={selectedDepartmentFilter}
-              onChange={(e) => onSelectDepartmentFilter(e.target.value)}
-              title="Switch Department Records View"
-            >
-              <option value="all">
-                All Departments ({allStudents?.length || 0})
-              </option>
-              {departments.map((d) => {
-                const count = (allStudents || []).filter((s) => {
-                  const sDept = (s.department || "").toLowerCase().trim();
-                  return (
-                    (d.id === "management" &&
-                      (sDept === "management" ||
-                        (sDept.includes("management") &&
-                          !sDept.includes("project") &&
-                          !sDept.includes("employee") &&
-                          !sDept.includes("innovation") &&
-                          !sDept.includes("procurement")))) ||
-                    (d.id === "project_management" && sDept.includes("project")) ||
-                    (d.id === "employee_relations" && sDept.includes("employee")) ||
-                    (d.id === "innovation_entrepreneurship" &&
-                      (sDept.includes("innovation") || sDept.includes("entrepreneurship"))) ||
-                    (d.id === "procurement_management" && sDept.includes("procurement"))
-                  );
-                }).length;
-                return (
-                  <option key={d.id} value={d.id}>
-                    {d.shortName} ({count})
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        )}
       </div>
 
       <div className="nav-center">
@@ -306,48 +261,6 @@ export default function Navbar({
                     {currentUser.department || "University of Port Harcourt"} • {currentUser.program || "Full-Time"}
                   </span>
                 </div>
-              </div>
-            )}
-
-            {departments && departments.length > 0 && onSelectDepartmentFilter && (
-              <div className="mobile-dept-selector-box">
-                <span className="mobile-dept-label">
-                  <Building size={14} /> Active Department View:
-                </span>
-                <select
-                  className="mobile-dept-select"
-                  value={selectedDepartmentFilter}
-                  onChange={(e) => {
-                    onSelectDepartmentFilter(e.target.value);
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  <option value="all">All Departments ({allStudents?.length || 0})</option>
-                  {departments.map((d) => {
-                    const count = (allStudents || []).filter((s) => {
-                      const sDept = (s.department || "").toLowerCase().trim();
-                      return (
-                        (d.id === "management" &&
-                          (sDept === "management" ||
-                            (sDept.includes("management") &&
-                              !sDept.includes("project") &&
-                              !sDept.includes("employee") &&
-                              !sDept.includes("innovation") &&
-                              !sDept.includes("procurement")))) ||
-                        (d.id === "project_management" && sDept.includes("project")) ||
-                        (d.id === "employee_relations" && sDept.includes("employee")) ||
-                        (d.id === "innovation_entrepreneurship" &&
-                          (sDept.includes("innovation") || sDept.includes("entrepreneurship"))) ||
-                        (d.id === "procurement_management" && sDept.includes("procurement"))
-                      );
-                    }).length;
-                    return (
-                      <option key={d.id} value={d.id}>
-                        {d.shortName} ({count} Students)
-                      </option>
-                    );
-                  })}
-                </select>
               </div>
             )}
 
