@@ -23,16 +23,6 @@ import {
 import { DEPARTMENTS, getUsersForTrack, auth } from "../services/auth";
 import ForgotPasswordModal from "./ForgotPasswordModal";
 
-export const FACULTY_ADMIN_DEPT = {
-  id: "all",
-  name: "Faculty System Administration",
-  shortName: "Faculty Administration",
-  code: "ADMIN",
-  hasPartTime: false,
-  programs: ["All"],
-  description: "Universal administrative access across all 5 departments, courses, and students simultaneously.",
-};
-
 export default function LoginPage({ onLoginSuccess }) {
   // Navigation state: "departments" | "divisions" | "officers"
   const [step, setStep] = useState("departments");
@@ -50,8 +40,6 @@ export default function LoginPage({ onLoginSuccess }) {
   // Map icons to departments
   const getDeptIcon = (deptId) => {
     switch (deptId) {
-      case "all":
-        return <ShieldCheck size={26} className="dept-icon-svg" />;
       case "management":
         return <Building size={26} className="dept-icon-svg" />;
       case "project_management":
@@ -74,11 +62,7 @@ export default function LoginPage({ onLoginSuccess }) {
     setUsername("");
     setPassword("");
     setError("");
-    if (dept.id === "all") {
-      // Universal Dean / Admin access
-      setSelectedProgram("All");
-      setStep("officers");
-    } else if (dept.hasPartTime) {
+    if (dept.hasPartTime) {
       // Management has both Full-Time and Part-Time
       setStep("divisions");
     } else {
@@ -244,9 +228,9 @@ export default function LoginPage({ onLoginSuccess }) {
       {step === "departments" && (
         <main className="gateway-main-container">
           <div className="gateway-section-intro">
-            <h2>Select Academic Department or Administrative Access</h2>
+            <h2>Select Academic Department</h2>
             <p>
-              Choose your department or sign in as Faculty Administrator to view and manage examination records.
+              Choose your department to view and manage examination records.
             </p>
           </div>
 
@@ -267,7 +251,7 @@ export default function LoginPage({ onLoginSuccess }) {
                 <User size={14} className="input-icon" />
                 <input
                   type="text"
-                  placeholder="Officer username (e.g. pm_100, admin, hod)"
+                  placeholder="Officer username (e.g. mgt_ft_100, pm_100, hod)"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -297,39 +281,6 @@ export default function LoginPage({ onLoginSuccess }) {
           </div>
 
           <div className="department-cards-grid">
-            {/* UNIVERSAL DEANERY & ADMINISTRATION CARD */}
-            <div
-              className="dept-portal-card admin-portal-card"
-              style={{
-                background: "linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)",
-                border: "1px solid rgba(56, 189, 248, 0.35)",
-              }}
-              onClick={() => handleSelectDepartment(FACULTY_ADMIN_DEPT)}
-            >
-              <div className="dept-card-top">
-                <div className="dept-icon-wrapper" style={{ background: "#0284c7", color: "#ffffff" }}>
-                  <ShieldCheck size={26} />
-                </div>
-                <div className="dept-code-tag" style={{ background: "#e0f2fe", color: "#0369a1" }}>ADMIN</div>
-              </div>
-
-              <div className="dept-card-body">
-                <h3 className="dept-card-name">{FACULTY_ADMIN_DEPT.name}</h3>
-                <p className="dept-card-desc">{FACULTY_ADMIN_DEPT.description}</p>
-              </div>
-
-              <div className="dept-card-footer">
-                <div className="dept-modes-pill pill-dual" style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
-                  <Sparkles size={13} />
-                  <span>All 5 Departments & Programs</span>
-                </div>
-                <div className="dept-select-action">
-                  <span>Sign In as System Admin</span>
-                  <ChevronRight size={16} />
-                </div>
-              </div>
-            </div>
-
             {/* 5 DEPARTMENTS CARDS */}
             {DEPARTMENTS.map((dept) => (
               <div

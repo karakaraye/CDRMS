@@ -371,11 +371,14 @@ class AuthService {
 
   _loadUser() {
     try {
-      let data = null;
+      // Purge persistent localStorage session so opening the domain/link never auto-logs in
       if (typeof localStorage !== "undefined") {
-        data = localStorage.getItem(STORAGE_KEY_AUTH);
+        localStorage.removeItem(STORAGE_KEY_AUTH);
+        localStorage.removeItem("cdrms_auth_user");
       }
-      if (!data && typeof sessionStorage !== "undefined") {
+
+      let data = null;
+      if (typeof sessionStorage !== "undefined") {
         data = sessionStorage.getItem(STORAGE_KEY_AUTH);
       }
       if (data) {
@@ -419,9 +422,7 @@ class AuthService {
     };
     delete this.currentUser.password;
 
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
-    }
+    // Use sessionStorage ONLY so fresh visits always land on the Department Login Screen
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
     }
@@ -474,9 +475,6 @@ class AuthService {
 
     if (this.currentUser && this.currentUser.username.toLowerCase() === cleanUser) {
       this.currentUser.mustChangePassword = false;
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
-      }
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
       }
@@ -511,9 +509,6 @@ class AuthService {
     // If currently logged in as this user, flag them to change password
     if (this.currentUser && this.currentUser.username.toLowerCase() === cleanUser) {
       this.currentUser.mustChangePassword = true;
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
-      }
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
       }
