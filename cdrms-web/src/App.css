@@ -6228,6 +6228,87 @@
   }
 }
 
+/* ============================================================
+   3-WAY SITTING STATUS SELECTORS & TRANSCRIPT BADGES
+   ============================================================ */
+.sitting-select {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  width: 100%;
+  max-width: 175px;
+}
+
+.sitting-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.sitting-select.sitting-regular {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.sitting-select.sitting-regular:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.sitting-select.sitting-approved_absence {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.sitting-select.sitting-approved_absence:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.sitting-select.sitting-carryover {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.sitting-select.sitting-carryover:hover {
+  background: #ffedd5;
+  border-color: #fdba74;
+}
+
+/* Transcript Sitting Badges */
+.transcript-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.transcript-badge.badge-approved-absence {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.transcript-badge.badge-carryover {
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+
 
 
 

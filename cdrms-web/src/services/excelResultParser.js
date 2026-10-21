@@ -189,18 +189,29 @@ export function checkCarryoverStatus({
   existingResults = [],
   targetSession = "",
 }) {
-  if (!student || !course) return { isCarryover: false, reason: "" };
+  if (!student || !course) return { isCarryover: false, sittingType: "REGULAR", reason: "" };
 
-  // 1. Explicit status indicated in Excel row
   const statusStr = String(excelStatusText).toUpperCase().trim();
+
+  // 1. Explicit Approved Absence / Deferment in Excel
+  if (/(DEF|DEFER|MED|MEDICAL|ABS_APP|APPROVED|ILLNESS|COMPASSIONATE|EXEMPT)/.test(statusStr)) {
+    return {
+      isCarryover: false,
+      sittingType: "APPROVED_ABSENCE",
+      reason: `Approved Deferment / Medical Absence in Excel ("${excelStatusText}") — First Sitting (Full GP)`,
+    };
+  }
+
+  // 2. Explicit Carry-Over / Repeat in Excel
   if (/(CO|C\/O|CARRY|REPEAT|SPILL|RESIT)/.test(statusStr)) {
     return {
       isCarryover: true,
+      sittingType: "CARRYOVER",
       reason: `Flagged as Carry-over in Excel ("${excelStatusText}")`,
     };
   }
 
-  // 2. Check student's prior results for this course
+  // 3. Check student's prior results for this course
   const priorResult = existingResults.find(
     (r) =>
       String(r.student_id) === String(student.id) &&
@@ -209,26 +220,35 @@ export function checkCarryoverStatus({
   );
 
   if (priorResult) {
+    if (priorResult.sitting_type === "APPROVED_ABSENCE" || priorResult.grade === "I" || priorResult.grade === "ABS-APP") {
+      return {
+        isCarryover: false,
+        sittingType: "APPROVED_ABSENCE",
+        reason: `Previous Approved Absence recorded (${priorResult.session}) — Current attempt is First Sitting (Full GP)`,
+      };
+    }
     if (priorResult.score < 40 || priorResult.grade === "F" || priorResult.is_carryover) {
       return {
         isCarryover: true,
+        sittingType: "CARRYOVER",
         reason: `Previous attempt recorded (${priorResult.session}: ${priorResult.score}% - Grade ${priorResult.grade})`,
       };
     }
   }
 
-  // 3. Cohort / Level Mismatch
+  // 4. Cohort / Level Mismatch
   const studentLevelNum = parseInt(getLevelForStudentSession(student, targetSession), 10) || 100;
   const courseLevelNum = parseInt(course.level, 10) || 100;
 
   if (studentLevelNum > courseLevelNum) {
     return {
       isCarryover: true,
+      sittingType: "CARRYOVER",
       reason: `Older cohort student (${student.batch || extractEntryYear(student)}) taking ${course.level}L course in ${studentLevelNum}L (${targetSession})`,
     };
   }
 
-  return { isCarryover: false, reason: "" };
+  return { isCarryover: false, sittingType: "REGULAR", reason: "" };
 }
 
 /**
@@ -457,6 +477,7 @@ export async function parseExcelResultsFile({
       grade,
       gradePoint,
       isCarryover,
+      sittingType: carryoverInfo.sittingType || (isCarryover ? "CARRYOVER" : "REGULAR"),
       carryoverReason: carryoverInfo.reason,
       studentLevelForSession,
       targetSession: session,

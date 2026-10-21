@@ -152,6 +152,7 @@ ALTER TABLE public.results ADD COLUMN IF NOT EXISTS student_name TEXT;
 ALTER TABLE public.results ADD COLUMN IF NOT EXISTS matric_no TEXT;
 ALTER TABLE public.results ADD COLUMN IF NOT EXISTS course_code TEXT;
 ALTER TABLE public.results ADD COLUMN IF NOT EXISTS credit_units INTEGER DEFAULT 3;
+ALTER TABLE public.results ADD COLUMN IF NOT EXISTS sitting_type TEXT DEFAULT 'REGULAR';
 
 ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_data TEXT;
 ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_name TEXT;

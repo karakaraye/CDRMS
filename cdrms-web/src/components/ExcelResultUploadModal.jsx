@@ -205,23 +205,34 @@ export default function ExcelResultUploadModal({
     );
   };
 
-  const toggleCarryover = (rowId) => {
+  const handleSittingTypeChange = (rowId, newSittingType) => {
     setRows((prev) =>
       prev.map((r) => {
         if (r.rowId !== rowId) return r;
-        const newCarryover = !r.isCarryover;
+        const newCarryover = newSittingType === "CARRYOVER";
         const { letter: grade, point: gradePoint } = scoreToGrade(r.score, newCarryover);
+        let reason = "First Sitting (Regular)";
+        if (newSittingType === "APPROVED_ABSENCE") {
+          reason = "Approved Absence / Medical Deferment (First Sitting - Full GP)";
+        } else if (newSittingType === "CARRYOVER") {
+          reason = "Carry-over / Repeat Sitting (3.0 GP Cap)";
+        }
         return {
           ...r,
+          sittingType: newSittingType,
           isCarryover: newCarryover,
           grade,
           gradePoint,
-          carryoverReason: newCarryover
-            ? "Manually flagged as Carry-over"
-            : "Manually marked as Regular",
+          carryoverReason: reason,
         };
       })
     );
+  };
+
+  const toggleCarryover = (rowId) => {
+    const row = rows.find((r) => r.rowId === rowId);
+    const nextType = row?.sittingType === "CARRYOVER" ? "REGULAR" : "CARRYOVER";
+    handleSittingTypeChange(rowId, nextType);
   };
 
   const handleScoreChange = (rowId, newScore) => {
@@ -273,9 +284,12 @@ export default function ExcelResultUploadModal({
     const nameMatch = rows.filter(
       (r) => r.matchType === "NAME_MATCH" || r.matchType === "NAME_IN_MATRIC_CELL"
     ).length;
-    const carryovers = rows.filter((r) => r.isCarryover).length;
+    const approvedAbsences = rows.filter(
+      (r) => r.sittingType === "APPROVED_ABSENCE"
+    ).length;
+    const carryovers = rows.filter((r) => r.isCarryover || r.sittingType === "CARRYOVER").length;
     const unmatched = rows.filter((r) => r.matchedStudent === null).length;
-    return { total, ready, nameMatch, carryovers, unmatched };
+    return { total, ready, nameMatch, approvedAbsences, carryovers, unmatched };
   }, [rows]);
 
   // Filtered rows for the table
@@ -289,7 +303,8 @@ export default function ExcelResultUploadModal({
         r.matchType !== "NAME_IN_MATRIC_CELL"
       )
         return false;
-      if (filterTab === "CARRYOVER" && !r.isCarryover) return false;
+      if (filterTab === "APPROVED_ABSENCE" && r.sittingType !== "APPROVED_ABSENCE") return false;
+      if (filterTab === "CARRYOVER" && !r.isCarryover && r.sittingType !== "CARRYOVER") return false;
       if (filterTab === "UNMATCHED" && r.matchedStudent !== null) return false;
 
       // Search filter
@@ -331,27 +346,33 @@ export default function ExcelResultUploadModal({
 
     setIsSaving(true);
     try {
-      const recordsToSave = rowsToImport.map((r) => ({
-        student_id: r.matchedStudent.id,
-        student_name: r.matchedStudent.fullname || null,
-        matric_no: r.matchedStudent.matric_no || null,
-        course_id: selectedCourse.id,
-        course_code: selectedCourse.course_code,
-        credit_units: Number(selectedCourse.credit_units || 2),
-        score: r.score,
-        grade: r.grade,
-        grade_point: r.gradePoint,
-        session,
-        semester,
-        level: r.studentLevelForSession || selectedCourse.level || level,
-        is_carryover: r.isCarryover ? 1 : 0,
-        is_waived: 0,
-        waiver_grade: null,
-        remark: r.isCarryover
-          ? `Carry-over (${selectedCourse.course_code} in ${session})`
-          : `Regular (${selectedCourse.course_code} in ${session})`,
-        is_locked: true,
-      }));
+      const recordsToSave = rowsToImport.map((r) => {
+        const sittingType = r.sittingType || (r.isCarryover ? "CARRYOVER" : "REGULAR");
+        return {
+          student_id: r.matchedStudent.id,
+          student_name: r.matchedStudent.fullname || null,
+          matric_no: r.matchedStudent.matric_no || null,
+          course_id: selectedCourse.id,
+          course_code: selectedCourse.course_code,
+          credit_units: Number(selectedCourse.credit_units || 2),
+          score: r.score,
+          grade: r.grade,
+          grade_point: r.gradePoint,
+          session,
+          semester,
+          level: r.studentLevelForSession || selectedCourse.level || level,
+          is_carryover: r.isCarryover ? 1 : 0,
+          sitting_type: sittingType,
+          is_waived: 0,
+          waiver_grade: null,
+          remark: sittingType === "APPROVED_ABSENCE"
+            ? `Approved Absence / Medical Deferment (${selectedCourse.course_code} in ${session})`
+            : r.isCarryover
+            ? `Carry-over (${selectedCourse.course_code} in ${session})`
+            : `Regular (${selectedCourse.course_code} in ${session})`,
+          is_locked: true,
+        };
+      });
 
       // Bulk save via db service (handles LocalStorage & Supabase cloud sync)
       await db.saveBulkResults(recordsToSave);
@@ -729,6 +750,20 @@ export default function ExcelResultUploadModal({
                           Matched by Name ({stats.nameMatch})
                         </button>
                       )}
+                      {stats.approvedAbsences > 0 && (
+                        <button
+                          className={`filter-pill ${filterTab === "APPROVED_ABSENCE" ? "active" : ""}`}
+                          onClick={() => setFilterTab("APPROVED_ABSENCE")}
+                          style={{
+                            borderColor: filterTab === "APPROVED_ABSENCE" ? "#2563eb" : "#bfdbfe",
+                            background: filterTab === "APPROVED_ABSENCE" ? "#eff6ff" : "transparent",
+                            color: "#1d4ed8",
+                            fontWeight: "700"
+                          }}
+                        >
+                          Approved Absences ({stats.approvedAbsences})
+                        </button>
+                      )}
                       {stats.carryovers > 0 && (
                         <button
                           className={`filter-pill pill-purple ${filterTab === "CARRYOVER" ? "active" : ""}`}
@@ -798,7 +833,7 @@ export default function ExcelResultUploadModal({
                           <th style={{ width: "65px", textAlign: "center" }}>Exam (70)</th>
                           <th style={{ width: "75px", textAlign: "center" }}>Total Score</th>
                           <th style={{ width: "75px", textAlign: "center" }}>Grade</th>
-                          <th style={{ width: "130px", textAlign: "center" }}>Course Status</th>
+                          <th style={{ width: "165px", textAlign: "center" }}>Sitting Status (3-Way)</th>
                           <th style={{ width: "50px", textAlign: "center" }}>Action</th>
                         </tr>
                       </thead>
@@ -938,7 +973,11 @@ export default function ExcelResultUploadModal({
                                     <span className="session-text">{session}</span>
                                     <span className="level-text">
                                       {row.studentLevelForSession || level}L{" "}
-                                      {row.isCarryover ? "• Retake" : "• Reg"}
+                                      {row.sittingType === "APPROVED_ABSENCE"
+                                        ? "• 1st Take (Abs)"
+                                        : row.isCarryover
+                                        ? "• Retake"
+                                        : "• Reg"}
                                     </span>
                                   </div>
                                 </td>
@@ -981,31 +1020,18 @@ export default function ExcelResultUploadModal({
                                   </div>
                                 </td>
 
-                                {/* Carry-Over Toggle Switch */}
+                                {/* Sitting Status 3-Way Selector */}
                                 <td style={{ textAlign: "center" }}>
-                                  <button
-                                    type="button"
-                                    className={`status-toggle-btn ${
-                                      row.isCarryover ? "toggle-carryover" : "toggle-regular"
-                                    }`}
-                                    onClick={() => toggleCarryover(row.rowId)}
-                                    title={
-                                      row.carryoverReason ||
-                                      "Click to toggle between Regular and Carry-over"
-                                    }
+                                  <select
+                                    className={`sitting-select sitting-${(row.sittingType || (row.isCarryover ? "CARRYOVER" : "REGULAR")).toLowerCase()}`}
+                                    value={row.sittingType || (row.isCarryover ? "CARRYOVER" : "REGULAR")}
+                                    onChange={(e) => handleSittingTypeChange(row.rowId, e.target.value)}
+                                    title={row.carryoverReason || "Select sitting status: First Sitting (Regular), Approved Absence (Full GP), or Carry-Over (3.0 Cap)"}
                                   >
-                                    {row.isCarryover ? (
-                                      <>
-                                        <span className="status-dot dot-carryover" />
-                                        <span>Carry-Over (CO)</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="status-dot dot-regular" />
-                                        <span>Regular</span>
-                                      </>
-                                    )}
-                                  </button>
+                                    <option value="REGULAR">🟢 Regular (First Sitting)</option>
+                                    <option value="APPROVED_ABSENCE">🔵 Approved Absence (1st Take)</option>
+                                    <option value="CARRYOVER">🟠 Carry-Over (Repeat - 3.0 Cap)</option>
+                                  </select>
                                 </td>
 
                                 {/* Action */}

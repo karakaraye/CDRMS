@@ -286,6 +286,7 @@ class DataStore {
 
     const id = resData.id ? String(resData.id) : String(Date.now() + Math.random().toString(36).substr(2, 4));
 
+    const sittingType = resData.sitting_type || (isCarryover ? "CARRYOVER" : "REGULAR");
     const record = {
       ...resData,
       id,
@@ -293,6 +294,7 @@ class DataStore {
       grade,
       grade_point,
       is_carryover: isCarryover,
+      sitting_type: sittingType,
       is_waived: isWaived,
       is_locked: resData.is_locked !== undefined ? resData.is_locked : true,
     };
@@ -331,6 +333,7 @@ class DataStore {
       const grade_point = isWaived ? 1.0 : point;
       const id = r.id ? String(r.id) : String(Date.now() + Math.random().toString(36).substr(2, 4));
 
+      const sittingType = r.sitting_type || (isCarryover ? "CARRYOVER" : "REGULAR");
       const record = {
         ...r,
         id,
@@ -338,6 +341,7 @@ class DataStore {
         grade,
         grade_point,
         is_carryover: isCarryover,
+        sitting_type: sittingType,
         is_waived: isWaived,
         is_locked: r.is_locked !== undefined ? r.is_locked : true,
       };

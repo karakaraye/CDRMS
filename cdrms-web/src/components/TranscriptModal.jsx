@@ -294,7 +294,19 @@ export default function TranscriptModal({
                           <tbody>
                             {coursesList.map((item) => (
                               <tr key={item.id} className={!item.isPassed ? "row-failed" : ""}>
-                                <td><strong>{item.course_code}</strong></td>
+                                <td>
+                                  <strong>{item.course_code}</strong>
+                                  {item.sitting_type === "APPROVED_ABSENCE" && (
+                                    <span className="transcript-badge badge-approved-absence" title="First Sitting (Approved Absence / Medical Deferment - Full GP)">
+                                      ABS-APP
+                                    </span>
+                                  )}
+                                  {item.is_carryover && (
+                                    <span className="transcript-badge badge-carryover" title="Carry-Over Repeat (Capped at 3.0 GP)">
+                                      CO
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="title-cell">{item.course_title}</td>
                                 <td style={{ textAlign: "center" }}>{item.credit_units}</td>
                                 <td style={{ textAlign: "center" }}>{item.score || "-"}</td>
@@ -356,7 +368,7 @@ export default function TranscriptModal({
 
           {/* FOOTNOTES BLOCK */}
           <div style={{ marginTop: "10px", fontSize: "10px", color: "#475569", fontStyle: "italic" }}>
-            <strong>Footnotes:</strong> * - Excess required course (excluded from cumulative totals). W - Waived course. ** - Failed course.
+            <strong>Footnotes:</strong> * - Excess required course (excluded from cumulative totals). W - Waived course. ** - Failed course. ABS-APP - Senate-Approved Absence (First Sitting / Full GP). CO - Carry-Over Repeat (Capped at 3.0 GP).
           </div>
 
           {/* SIGNATURE BLOCK */}

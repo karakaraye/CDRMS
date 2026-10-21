@@ -205,10 +205,12 @@ export default function WorksheetModal({
             r.course_code.trim().toUpperCase() === c.course_code.trim().toUpperCase())
       );
       if (existing) {
+        const sittingType = existing.sitting_type || (existing.is_carryover ? "CARRYOVER" : "REGULAR");
         stdMap[c.id] = {
           id: existing.id,
           score: existing.score !== undefined ? String(existing.score) : "",
-          is_carryover: Boolean(existing.is_carryover),
+          is_carryover: sittingType === "CARRYOVER",
+          sitting_type: sittingType,
           is_waived: Boolean(existing.is_waived),
           waiver_grade: existing.waiver_grade || "",
           remark: existing.remark || "",
@@ -218,6 +220,7 @@ export default function WorksheetModal({
         stdMap[c.id] = {
           score: "",
           is_carryover: false,
+          sitting_type: "REGULAR",
           is_waived: false,
           waiver_grade: "",
           remark: "",
@@ -231,11 +234,13 @@ export default function WorksheetModal({
     const extras = [];
     currentResults.forEach((r) => {
       if (isExtraYear || !stdCourseIdSet.has(String(r.course_id))) {
+        const sittingType = r.sitting_type || (r.is_carryover ? "CARRYOVER" : "REGULAR");
         extras.push({
           slotId: `slot_${r.id || Date.now()}_${Math.random()}`,
           courseId: String(r.course_id),
           score: r.score !== undefined ? String(r.score) : "",
-          is_carryover: Boolean(r.is_carryover),
+          is_carryover: sittingType === "CARRYOVER",
+          sitting_type: sittingType,
           is_waived: Boolean(r.is_waived),
           waiver_grade: r.waiver_grade || "",
           remark: r.remark || "",
@@ -251,6 +256,7 @@ export default function WorksheetModal({
         courseId: "",
         score: "",
         is_carryover: true,
+        sitting_type: "CARRYOVER",
         is_waived: false,
         waiver_grade: "",
         remark: "",
@@ -261,6 +267,7 @@ export default function WorksheetModal({
         courseId: "",
         score: "",
         is_carryover: true,
+        sitting_type: "CARRYOVER",
         is_waived: false,
         waiver_grade: "",
         remark: "",
@@ -352,6 +359,29 @@ export default function WorksheetModal({
     }));
   };
 
+  const handleStandardSittingTypeChange = (courseId, newType) => {
+    if (!canEditEntry(standardEntries[courseId])) return;
+    const isCarryover = newType === "CARRYOVER";
+    let autoRemark = standardEntries[courseId]?.remark || "";
+    if (newType === "APPROVED_ABSENCE" && (!autoRemark || autoRemark.includes("Carry-Over"))) {
+      autoRemark = "Approved Absence / Medical Deferment (First Sitting)";
+    } else if (newType === "CARRYOVER" && (!autoRemark || autoRemark.includes("Approved Absence"))) {
+      autoRemark = "Carry-Over (Repeat Sitting - Max 3.0 GP)";
+    } else if (newType === "REGULAR" && (autoRemark.includes("Approved Absence") || autoRemark.includes("Carry-Over"))) {
+      autoRemark = "";
+    }
+
+    setStandardEntries((prev) => ({
+      ...prev,
+      [courseId]: {
+        ...prev[courseId],
+        sitting_type: newType,
+        is_carryover: isCarryover,
+        remark: autoRemark,
+      },
+    }));
+  };
+
   const handleStandardRemarkChange = (courseId, value) => {
     if (!canEditEntry(standardEntries[courseId])) return;
     setStandardEntries((prev) => ({
@@ -374,6 +404,7 @@ export default function WorksheetModal({
         courseId: "",
         score: "",
         is_carryover: isExtraYear,
+        sitting_type: isExtraYear ? "CARRYOVER" : "REGULAR",
         is_waived: false,
         waiver_grade: "",
         remark: "",
@@ -390,6 +421,34 @@ export default function WorksheetModal({
     }
     setExtraEntries((prev) => prev.filter((item) => item.slotId !== slotId));
     setErrorMessage("");
+  };
+
+  const handleExtraSittingTypeChange = (slotId, newType) => {
+    const targetSlot = extraEntries.find((item) => item.slotId === slotId);
+    if (!canEditEntry(targetSlot)) return;
+    const isCarryover = newType === "CARRYOVER";
+    let autoRemark = targetSlot?.remark || "";
+    if (newType === "APPROVED_ABSENCE" && (!autoRemark || autoRemark.includes("Carry-Over"))) {
+      autoRemark = "Approved Absence / Medical Deferment (First Sitting)";
+    } else if (newType === "CARRYOVER" && (!autoRemark || autoRemark.includes("Approved Absence"))) {
+      autoRemark = "Carry-Over (Repeat Sitting - Max 3.0 GP)";
+    } else if (newType === "REGULAR" && (autoRemark.includes("Approved Absence") || autoRemark.includes("Carry-Over"))) {
+      autoRemark = "";
+    }
+
+    setExtraEntries((prev) =>
+      prev.map((item) => {
+        if (item.slotId === slotId) {
+          return {
+            ...item,
+            sitting_type: newType,
+            is_carryover: isCarryover,
+            remark: autoRemark,
+          };
+        }
+        return item;
+      })
+    );
   };
 
   const handleExtraSlotChange = (slotId, field, value) => {
@@ -511,7 +570,8 @@ export default function WorksheetModal({
       const entry = standardEntries[c.id];
       if (entry && (entry.score !== "" || entry.is_waived)) {
         const scoreNum = parseFloat(entry.score) || 0;
-        const isCarryover = Boolean(entry.is_carryover);
+        const sittingType = entry.sitting_type || (entry.is_carryover ? "CARRYOVER" : "REGULAR");
+        const isCarryover = sittingType === "CARRYOVER";
         const isWaived = Boolean(entry.is_waived);
         const { letter, point } = scoreToGrade(scoreNum, isCarryover);
 
@@ -529,6 +589,7 @@ export default function WorksheetModal({
           semester,
           level,
           is_carryover: isCarryover ? 1 : 0,
+          sitting_type: sittingType,
           is_waived: isWaived ? 1 : 0,
         });
       }
@@ -538,7 +599,8 @@ export default function WorksheetModal({
       if (item.courseId && (item.score !== "" || item.is_waived)) {
         const course = courses.find((c) => String(c.id) === String(item.courseId));
         const scoreNum = parseFloat(item.score) || 0;
-        const isCarryover = Boolean(item.is_carryover);
+        const sittingType = item.sitting_type || (item.is_carryover ? "CARRYOVER" : "REGULAR");
+        const isCarryover = sittingType === "CARRYOVER";
         const isWaived = Boolean(item.is_waived);
         const { letter, point } = scoreToGrade(scoreNum, isCarryover);
 
@@ -556,6 +618,7 @@ export default function WorksheetModal({
           semester,
           level,
           is_carryover: isCarryover ? 1 : 0,
+          sitting_type: sittingType,
           is_waived: isWaived ? 1 : 0,
         });
       }
@@ -592,7 +655,8 @@ export default function WorksheetModal({
       const entry = standardEntries[c.id];
       if (entry && (entry.score !== "" || entry.is_waived)) {
         const scoreNum = parseFloat(entry.score) || 0;
-        const isCarryover = Boolean(entry.is_carryover);
+        const sittingType = entry.sitting_type || (entry.is_carryover ? "CARRYOVER" : "REGULAR");
+        const isCarryover = sittingType === "CARRYOVER";
         const isWaived = Boolean(entry.is_waived);
         const { letter, point } = scoreToGrade(scoreNum, isCarryover);
 
@@ -611,6 +675,7 @@ export default function WorksheetModal({
           semester,
           level,
           is_carryover: isCarryover ? 1 : 0,
+          sitting_type: sittingType,
           is_waived: isWaived ? 1 : 0,
           waiver_grade: entry.waiver_grade || null,
           remark: entry.remark || null,
@@ -623,7 +688,8 @@ export default function WorksheetModal({
     for (const item of extraEntries) {
       if (item.courseId && (item.score !== "" || item.is_waived)) {
         const scoreNum = parseFloat(item.score) || 0;
-        const isCarryover = Boolean(item.is_carryover);
+        const sittingType = item.sitting_type || (item.is_carryover ? "CARRYOVER" : "REGULAR");
+        const isCarryover = sittingType === "CARRYOVER";
         const isWaived = Boolean(item.is_waived);
         const { letter, point } = scoreToGrade(scoreNum, isCarryover);
         const course = courses.find((c) => String(c.id) === String(item.courseId));
@@ -643,6 +709,7 @@ export default function WorksheetModal({
           semester,
           level,
           is_carryover: isCarryover ? 1 : 0,
+          sitting_type: sittingType,
           is_waived: isWaived ? 1 : 0,
           waiver_grade: item.waiver_grade || null,
           remark: item.remark || null,
@@ -795,7 +862,7 @@ export default function WorksheetModal({
                     <th style={{ width: "70px", textAlign: "center" }}>Grade</th>
                     <th style={{ width: "60px", textAlign: "center" }}>GP</th>
                     <th style={{ width: "60px", textAlign: "center" }}>QP</th>
-                    <th style={{ width: "70px", textAlign: "center" }}>Repeat?</th>
+                    <th style={{ width: "175px", textAlign: "center" }}>Sitting Status (3-Way)</th>
                     <th style={{ width: "70px", textAlign: "center" }}>Waived?</th>
                     <th style={{ width: "110px" }}>Remark</th>
                     <th style={{ width: "80px", textAlign: "center" }}>Lock / Query</th>
@@ -813,6 +880,7 @@ export default function WorksheetModal({
                       const entry = standardEntries[c.id] || {
                         score: "",
                         is_carryover: false,
+                        sitting_type: "REGULAR",
                         is_waived: false,
                         waiver_grade: "",
                         remark: "",
@@ -878,12 +946,17 @@ export default function WorksheetModal({
                           <td style={{ textAlign: "center" }}>{gp}</td>
                           <td style={{ textAlign: "center" }}>{qp}</td>
                           <td style={{ textAlign: "center" }}>
-                            <input
-                              type="checkbox"
-                              checked={entry.is_carryover}
-                              onChange={(e) => handleStandardCheckChange(c.id, "is_carryover", e.target.checked)}
+                            <select
+                              className={`sitting-select sitting-${(entry.sitting_type || (entry.is_carryover ? "CARRYOVER" : "REGULAR")).toLowerCase()}`}
+                              value={entry.sitting_type || (entry.is_carryover ? "CARRYOVER" : "REGULAR")}
+                              onChange={(e) => handleStandardSittingTypeChange(c.id, e.target.value)}
                               disabled={!isEditable}
-                            />
+                              title="Select sitting status: First Sitting (Regular), Approved Absence (Full GP), or Carry-Over (3.0 Cap)"
+                            >
+                              <option value="REGULAR">🟢 First Sitting (Regular)</option>
+                              <option value="APPROVED_ABSENCE">🔵 Approved Absence (1st Take)</option>
+                              <option value="CARRYOVER">🟠 Carry-Over (Repeat - 3.0 Cap)</option>
+                            </select>
                           </td>
                           <td style={{ textAlign: "center" }}>
                             <input
@@ -976,7 +1049,7 @@ export default function WorksheetModal({
                     <th style={{ width: "65px", textAlign: "center" }}>Grade</th>
                     <th style={{ width: "55px", textAlign: "center" }}>GP</th>
                     <th style={{ width: "55px", textAlign: "center" }}>QP</th>
-                    <th style={{ width: "70px", textAlign: "center" }}>Repeat?</th>
+                    <th style={{ width: "175px", textAlign: "center" }}>Sitting Status (3-Way)</th>
                     <th style={{ width: "70px", textAlign: "center" }}>Waived?</th>
                     <th style={{ width: "110px" }}>Remark</th>
                     <th style={{ width: "80px", textAlign: "center" }}>Action</th>
@@ -1062,12 +1135,17 @@ export default function WorksheetModal({
                           <td style={{ textAlign: "center" }}>{gp}</td>
                           <td style={{ textAlign: "center" }}>{qp}</td>
                           <td style={{ textAlign: "center" }}>
-                            <input
-                              type="checkbox"
-                              checked={item.is_carryover}
-                              onChange={(e) => handleExtraSlotChange(item.slotId, "is_carryover", e.target.checked)}
+                            <select
+                              className={`sitting-select sitting-${(item.sitting_type || (item.is_carryover ? "CARRYOVER" : "REGULAR")).toLowerCase()}`}
+                              value={item.sitting_type || (item.is_carryover ? "CARRYOVER" : "REGULAR")}
+                              onChange={(e) => handleExtraSittingTypeChange(item.slotId, e.target.value)}
                               disabled={!isEditable}
-                            />
+                              title="Select sitting status: First Sitting (Regular), Approved Absence (Full GP), or Carry-Over (3.0 Cap)"
+                            >
+                              <option value="REGULAR">🟢 First Sitting (Regular)</option>
+                              <option value="APPROVED_ABSENCE">🔵 Approved Absence (1st Take)</option>
+                              <option value="CARRYOVER">🟠 Carry-Over (Repeat - 3.0 Cap)</option>
+                            </select>
                           </td>
                           <td style={{ textAlign: "center" }}>
                             <input
