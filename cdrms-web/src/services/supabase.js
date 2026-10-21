@@ -1,7 +1,7 @@
 /**
  * supabase.js
  * Cloud database integration service using @supabase/supabase-js
- * Supports Supabase (PostgreSQL in the cloud) with live testing & sync.
+ * Supports Supabase (PostgreSQL in the cloud) with live testing, sync & Realtime replication.
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -23,7 +23,14 @@ export function saveCloudCredentials(url, key) {
   else localStorage.removeItem(STORAGE_KEY_KEY);
 
   // Reset cached client
-  supabaseInstance = null;
+  if (supabaseInstance) {
+    try {
+      supabaseInstance.removeAllChannels();
+    } catch (e) {
+      // ignore
+    }
+    supabaseInstance = null;
+  }
 }
 
 let supabaseInstance = null;
@@ -34,7 +41,14 @@ export function getSupabaseClient() {
   const { url, key } = getStoredCloudCredentials();
   if (url && key) {
     try {
-      supabaseInstance = createClient(url, key);
+      supabaseInstance = createClient(url, key, {
+        auth: { persistSession: false },
+        realtime: {
+          params: {
+            eventsPerSecond: 10,
+          },
+        },
+      });
       return supabaseInstance;
     } catch (e) {
       console.warn("Could not instantiate Supabase client:", e);
@@ -61,19 +75,17 @@ export async function testCloudConnection(customUrl = null, customKey = null) {
   const start = performance.now();
   try {
     const client = createClient(url, key);
-    // Simple ping query to students or check system health
-    const { data, error } = await client.from("students").select("id").limit(1);
+    const { error } = await client.from("students").select("id").limit(1);
 
     const latency = Math.round(performance.now() - start);
 
     if (error) {
-      // If table doesn't exist yet, it's connected to Supabase but schema needs to be run!
       if (error.code === "PGRST204" || error.code === "42P01" || error.message?.includes("does not exist")) {
         return {
           success: true,
           schemaNeeded: true,
           latency,
-          message: `Connected to Supabase (${latency}ms)! However, tables need to be created. Please run the setup SQL script in your Supabase SQL Editor.`
+          message: `Connected to Supabase (${latency}ms)! However, tables need to be created.`
         };
       }
       return {
@@ -98,7 +110,37 @@ export async function testCloudConnection(customUrl = null, customKey = null) {
 }
 
 /**
- * Uploads all local data (students, courses, results) to Supabase cloud database.
+ * Pulls all records from Supabase cloud database down to the web client.
+ */
+export async function pullAllFromCloud() {
+  const client = getSupabaseClient();
+  if (!client) throw new Error("Cloud database is not configured.");
+
+  const [studentsRes, coursesRes, resultsRes, queriesRes, auditRes] = await Promise.all([
+    client.from("students").select("*").order("matric_no"),
+    client.from("courses").select("*").order("course_code"),
+    client.from("results").select("*"),
+    client.from("result_queries").select("*").order("created_at", { ascending: false }),
+    client.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(200),
+  ]);
+
+  if (studentsRes.error) console.warn("Students pull warning:", studentsRes.error.message);
+  if (coursesRes.error) console.warn("Courses pull warning:", coursesRes.error.message);
+  if (resultsRes.error) console.warn("Results pull warning:", resultsRes.error.message);
+  if (queriesRes.error) console.warn("Queries pull warning:", queriesRes.error.message);
+  if (auditRes.error) console.warn("Audit logs pull warning:", auditRes.error.message);
+
+  return {
+    students: studentsRes.data || [],
+    courses: coursesRes.data || [],
+    results: resultsRes.data || [],
+    queries: queriesRes.data || [],
+    auditLogs: auditRes.data || [],
+  };
+}
+
+/**
+ * Uploads local data to Supabase cloud database.
  */
 export async function pushAllToCloud(localData) {
   const client = getSupabaseClient();
@@ -163,25 +205,227 @@ export async function pushAllToCloud(localData) {
 }
 
 /**
- * Pulls all records from Supabase cloud database down to the web client.
+ * Save single student to Supabase
  */
-export async function pullAllFromCloud() {
+export async function saveStudentToCloud(student) {
   const client = getSupabaseClient();
-  if (!client) throw new Error("Cloud database is not configured.");
+  if (!client) return;
 
-  const [studentsRes, coursesRes, resultsRes] = await Promise.all([
-    client.from("students").select("*").order("matric_no"),
-    client.from("courses").select("*").order("course_code"),
-    client.from("results").select("*")
-  ]);
+  const payload = {
+    matric_no: student.matric_no,
+    surname: student.surname,
+    firstname: student.firstname,
+    other_name: student.other_name,
+    fullname: student.fullname || `${student.surname || ""} ${student.firstname || ""} ${student.other_name || ""}`.trim(),
+    batch: student.batch || "U2022",
+    student_type: student.student_type || "Full-Time",
+    dob: student.dob || null,
+    sex: student.sex || null,
+    marital_status: student.marital_status || null,
+    gsm: student.gsm || null,
+    sponsor_gsm: student.sponsor_gsm || null,
+    guardian_rel: student.guardian_rel || null,
+    email: student.email || null,
+    state_of_origin: student.state_of_origin || null,
+    lga: student.lga || null,
+    faculty: student.faculty || "Management Sciences",
+    department: student.department || "Management",
+    entry_year: student.entry_year || null
+  };
 
-  if (studentsRes.error) throw new Error(`Students pull failed: ${studentsRes.error.message}`);
-  if (coursesRes.error) throw new Error(`Courses pull failed: ${coursesRes.error.message}`);
-  if (resultsRes.error) throw new Error(`Results pull failed: ${resultsRes.error.message}`);
+  const { error } = await client.from("students").upsert(payload, { onConflict: "matric_no" });
+  if (error) console.warn("Supabase student sync error:", error.message);
+}
 
-  return {
-    students: studentsRes.data || [],
-    courses: coursesRes.data || [],
-    results: resultsRes.data || []
+/**
+ * Delete student from Supabase
+ */
+export async function deleteStudentFromCloud(matricNo) {
+  const client = getSupabaseClient();
+  if (!client || !matricNo) return;
+  const { error } = await client.from("students").delete().eq("matric_no", matricNo);
+  if (error) console.warn("Supabase student delete error:", error.message);
+}
+
+/**
+ * Save single course to Supabase
+ */
+export async function saveCourseToCloud(course) {
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const payload = {
+    course_code: course.course_code,
+    course_title: course.course_title,
+    credit_units: Number(course.credit_units || 3),
+    level: String(course.level || "100"),
+    semester: String(course.semester || "First"),
+    status: course.status || "Compulsory",
+    program: course.program || "Full-Time",
+    remark: course.remark || null
+  };
+
+  const { error } = await client.from("courses").upsert(payload, { onConflict: "course_code,level,semester,program" });
+  if (error) console.warn("Supabase course sync error:", error.message);
+}
+
+/**
+ * Delete course from Supabase
+ */
+export async function deleteCourseFromCloud(course) {
+  const client = getSupabaseClient();
+  if (!client || !course) return;
+  const query = client.from("courses").delete().eq("course_code", course.course_code);
+  if (course.level) query.eq("level", course.level);
+  if (course.semester) query.eq("semester", course.semester);
+  if (course.program) query.eq("program", course.program);
+  const { error } = await query;
+  if (error) console.warn("Supabase course delete error:", error.message);
+}
+
+/**
+ * Save single result to Supabase
+ */
+export async function saveResultToCloud(record) {
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const payload = {
+    student_id: String(record.student_id),
+    course_id: String(record.course_id),
+    score: Number(record.score || 0),
+    grade: record.grade || "F",
+    grade_point: Number(record.grade_point || 0),
+    session: record.session || "2022/2023",
+    semester: record.semester || "First",
+    is_carryover: record.is_carryover ? 1 : 0,
+    is_waived: record.is_waived ? 1 : 0,
+    waiver_grade: record.waiver_grade || null,
+    remark: record.remark || null,
+    level: record.level || null
+  };
+
+  const { error } = await client.from("results").upsert(payload, {
+    onConflict: "student_id,course_id,session,semester"
+  });
+  if (error) console.warn("Supabase result sync error:", error.message);
+}
+
+/**
+ * Save bulk results to Supabase in chunks
+ */
+export async function saveBulkResultsToCloud(resultsList) {
+  const client = getSupabaseClient();
+  if (!client || !resultsList || resultsList.length === 0) return;
+
+  const payloads = resultsList.map(r => ({
+    student_id: String(r.student_id),
+    course_id: String(r.course_id),
+    score: Number(r.score || 0),
+    grade: r.grade || "F",
+    grade_point: Number(r.grade_point || 0),
+    session: r.session || "2022/2023",
+    semester: r.semester || "First",
+    is_carryover: r.is_carryover ? 1 : 0,
+    is_waived: r.is_waived ? 1 : 0,
+    waiver_grade: r.waiver_grade || null,
+    remark: r.remark || null,
+    level: r.level || null
+  }));
+
+  // Batch in chunks of 50
+  const chunkSize = 50;
+  for (let i = 0; i < payloads.length; i += chunkSize) {
+    const chunk = payloads.slice(i, i + chunkSize);
+    const { error } = await client.from("results").upsert(chunk, {
+      onConflict: "student_id,course_id,session,semester"
+    });
+    if (error) console.warn("Supabase bulk result chunk sync error:", error.message);
+  }
+}
+
+/**
+ * Save query to Supabase
+ */
+export async function saveQueryToCloud(query) {
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const payload = {
+    id: String(query.id),
+    student_id: String(query.student_id || ""),
+    student_name: query.student_name || "",
+    matric_no: query.matric_no || "",
+    course_id: String(query.course_id || ""),
+    course_code: query.course_code || "",
+    course_title: query.course_title || "",
+    original_score: query.original_score !== undefined ? Number(query.original_score) : null,
+    proposed_score: query.proposed_score !== undefined ? Number(query.proposed_score) : null,
+    approved_score: query.approved_score !== undefined ? Number(query.approved_score) : null,
+    reason: query.reason || "",
+    requested_by: query.requested_by || "",
+    status: query.status || "PENDING",
+    resolution_note: query.resolution_note || null,
+    resolved_by: query.resolved_by || null,
+    resolved_at: query.resolved_at || null,
+    session: query.session || "",
+    semester: query.semester || "",
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } = await client.from("result_queries").upsert(payload, { onConflict: "id" });
+  if (error) console.warn("Supabase query sync error:", error.message);
+}
+
+/**
+ * Save audit log entry to Supabase
+ */
+export async function saveAuditLogToCloud(log) {
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const payload = {
+    id: String(log.id),
+    action: log.action || "SYSTEM_ACTION",
+    title: log.title || "",
+    details: log,
+    created_at: log.timestamp || new Date().toISOString()
+  };
+
+  const { error } = await client.from("audit_logs").upsert(payload, { onConflict: "id" });
+  if (error) console.warn("Supabase audit log sync error:", error.message);
+}
+
+/**
+ * Realtime multi-user subscription across all laptops.
+ * Calls onChange whenever another user inserts, updates, or deletes data.
+ */
+export function subscribeToRealtime(onChange) {
+  const client = getSupabaseClient();
+  if (!client) return () => {};
+
+  const channel = client
+    .channel("public-all-changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public" },
+      (payload) => {
+        if (typeof onChange === "function") {
+          onChange(payload);
+        }
+      }
+    )
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log("Supabase Realtime connected: multi-user updates active.");
+      }
+    });
+
+  return () => {
+    try {
+      client.removeChannel(channel);
+    } catch (e) {
+      // ignore
+    }
   };
 }

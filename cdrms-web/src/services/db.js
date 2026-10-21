@@ -5,7 +5,17 @@
  */
 
 import { ALL_INITIAL_COURSES } from "../constants/courses";
-import { getSupabaseClient } from "./supabase";
+import {
+  getSupabaseClient,
+  saveStudentToCloud,
+  deleteStudentFromCloud,
+  saveCourseToCloud,
+  deleteCourseFromCloud,
+  saveResultToCloud,
+  saveBulkResultsToCloud,
+  saveQueryToCloud,
+  saveAuditLogToCloud
+} from "./supabase";
 import { scoreToGrade } from "./grading";
 
 const STORAGE_KEY_STUDENTS = "cdrms_students_data";
@@ -272,7 +282,6 @@ class DataStore {
   }
 
   async saveStudent(studentData) {
-    const client = getSupabaseClient();
     const isNew = !studentData.id;
     const id = isNew ? String(Date.now()) : String(studentData.id);
 
@@ -300,35 +309,10 @@ class DataStore {
 
     this._save(STORAGE_KEY_STUDENTS, this.students);
 
-    // Sync to Supabase in background if client is ready
-    if (client) {
-      try {
-        const payload = {
-          matric_no: record.matric_no,
-          surname: record.surname,
-          firstname: record.firstname,
-          other_name: record.other_name,
-          fullname: record.fullname,
-          batch: record.batch,
-          student_type: record.student_type,
-          dob: record.dob || null,
-          sex: record.sex || null,
-          marital_status: record.marital_status || null,
-          gsm: record.gsm || null,
-          sponsor_gsm: record.sponsor_gsm || null,
-          guardian_rel: record.guardian_rel || null,
-          email: record.email || null,
-          state_of_origin: record.state_of_origin || null,
-          lga: record.lga || null,
-          faculty: record.faculty || "Management Sciences",
-          department: record.department || "Management",
-          entry_year: record.entry_year || null
-        };
-        await client.from("students").upsert(payload, { onConflict: "matric_no" });
-      } catch (err) {
-        console.warn("Background Supabase student sync failed:", err);
-      }
-    }
+    // Sync to Supabase cloud
+    saveStudentToCloud(record).catch(err => {
+      console.warn("Background Supabase student sync failed:", err);
+    });
 
     return record;
   }
@@ -340,13 +324,10 @@ class DataStore {
     this._save(STORAGE_KEY_STUDENTS, this.students);
     this._save(STORAGE_KEY_RESULTS, this.results);
 
-    const client = getSupabaseClient();
-    if (client && student) {
-      try {
-        await client.from("students").delete().eq("matric_no", student.matric_no);
-      } catch (err) {
+    if (student && student.matric_no) {
+      deleteStudentFromCloud(student.matric_no).catch(err => {
         console.warn("Background Supabase student delete failed:", err);
-      }
+      });
     }
   }
 
@@ -389,30 +370,23 @@ class DataStore {
 
     this._save(STORAGE_KEY_COURSES, this.courses);
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from("courses").upsert({
-          course_code: record.course_code,
-          course_title: record.course_title,
-          credit_units: record.credit_units,
-          level: record.level,
-          semester: record.semester,
-          status: record.status,
-          program: record.program,
-          remark: record.remark || null
-        }, { onConflict: "course_code,level,semester,program" });
-      } catch (err) {
-        console.warn("Background Supabase course sync failed:", err);
-      }
-    }
+    saveCourseToCloud(record).catch(err => {
+      console.warn("Background Supabase course sync failed:", err);
+    });
 
     return record;
   }
 
   async deleteCourse(id) {
+    const course = this.courses.find(c => String(c.id) === String(id));
     this.courses = this.courses.filter(c => String(c.id) !== String(id));
     this._save(STORAGE_KEY_COURSES, this.courses);
+
+    if (course) {
+      deleteCourseFromCloud(course).catch(err => {
+        console.warn("Background Supabase course delete failed:", err);
+      });
+    }
   }
 
   // -------------------------------------------------------------
@@ -459,35 +433,55 @@ class DataStore {
 
     this._save(STORAGE_KEY_RESULTS, this.results);
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from("results").upsert({
-          student_id: record.student_id,
-          course_id: record.course_id,
-          score: record.score,
-          grade: record.grade,
-          grade_point: record.grade_point,
-          session: record.session,
-          semester: record.semester,
-          is_carryover: record.is_carryover ? 1 : 0,
-          is_waived: record.is_waived ? 1 : 0,
-          waiver_grade: record.waiver_grade || null,
-          remark: record.remark || null,
-          level: record.level || null
-        });
-      } catch (err) {
-        console.warn("Background Supabase result sync failed:", err);
-      }
-    }
+    saveResultToCloud(record).catch(err => {
+      console.warn("Background Supabase result sync failed:", err);
+    });
 
     return record;
   }
 
   async saveBulkResults(resultsList) {
     for (const r of resultsList) {
-      await this.saveResult(r);
+      const score = Number(r.score || 0);
+      const isCarryover = Boolean(r.is_carryover);
+      const isWaived = Boolean(r.is_waived);
+      const { letter, point } = scoreToGrade(score, isCarryover);
+      const grade = isWaived ? (r.waiver_grade || "W") : letter;
+      const grade_point = isWaived ? 1.0 : point;
+      const id = r.id ? String(r.id) : String(Date.now() + Math.random().toString(36).substr(2, 4));
+
+      const record = {
+        ...r,
+        id,
+        score,
+        grade,
+        grade_point,
+        is_carryover: isCarryover,
+        is_waived: isWaived,
+        is_locked: r.is_locked !== undefined ? r.is_locked : true,
+      };
+
+      const existingIdx = this.results.findIndex(item =>
+        String(item.student_id) === String(record.student_id) &&
+        String(item.course_id) === String(record.course_id) &&
+        item.session === record.session &&
+        item.semester === record.semester
+      );
+
+      if (existingIdx !== -1) {
+        this.results[existingIdx] = record;
+      } else {
+        this.results.push(record);
+      }
     }
+
+    this._save(STORAGE_KEY_RESULTS, this.results);
+
+    // Fast bulk upsert to Supabase
+    saveBulkResultsToCloud(resultsList).catch(err => {
+      console.warn("Background Supabase bulk results sync failed:", err);
+    });
+
     if (resultsList.length > 0) {
       this.addAuditLog({
         action: "RESULTS_BATCH_LOCKED",
@@ -503,8 +497,14 @@ class DataStore {
   }
 
   async deleteResult(id) {
+    const res = this.results.find(r => String(r.id) === String(id));
     this.results = this.results.filter(r => String(r.id) !== String(id));
     this._save(STORAGE_KEY_RESULTS, this.results);
+
+    const client = getSupabaseClient();
+    if (client && res) {
+      client.from("results").delete().eq("id", id).catch(e => console.warn(e));
+    }
   }
 
   // -------------------------------------------------------------
@@ -524,6 +524,10 @@ class DataStore {
     };
     this.queries.unshift(query);
     this._save(STORAGE_KEY_QUERIES, this.queries);
+
+    saveQueryToCloud(query).catch(err => {
+      console.warn("Background Supabase query sync failed:", err);
+    });
 
     this.addAuditLog({
       action: "SCORE_QUERY_SUBMITTED",
@@ -550,6 +554,7 @@ class DataStore {
 
     const query = this.queries[qIdx];
     const scoreNum = Number(approvedScore);
+    let updatedResult = null;
 
     // Update the targeted result in results
     const rIdx = this.results.findIndex(
@@ -564,7 +569,7 @@ class DataStore {
     if (rIdx !== -1) {
       const existing = this.results[rIdx];
       const { letter, point } = scoreToGrade(scoreNum, existing.is_carryover);
-      const updatedResult = {
+      updatedResult = {
         ...existing,
         score: scoreNum,
         grade: existing.is_waived ? (existing.waiver_grade || "W") : letter,
@@ -574,6 +579,7 @@ class DataStore {
       };
       this.results[rIdx] = updatedResult;
       this._save(STORAGE_KEY_RESULTS, this.results);
+      saveResultToCloud(updatedResult).catch(e => console.warn(e));
     }
 
     // Mark query resolved
@@ -586,6 +592,7 @@ class DataStore {
       resolved_at: new Date().toISOString(),
     };
     this._save(STORAGE_KEY_QUERIES, this.queries);
+    saveQueryToCloud(this.queries[qIdx]).catch(e => console.warn(e));
 
     // Log to Audit Trail
     this.addAuditLog({
@@ -621,6 +628,7 @@ class DataStore {
       resolved_at: new Date().toISOString(),
     };
     this._save(STORAGE_KEY_QUERIES, this.queries);
+    saveQueryToCloud(this.queries[qIdx]).catch(e => console.warn(e));
 
     // Log to Audit Trail
     this.addAuditLog({
@@ -658,24 +666,38 @@ class DataStore {
     };
     this.auditLogs.unshift(log);
     this._save(STORAGE_KEY_AUDIT, this.auditLogs);
+    saveAuditLogToCloud(log).catch(e => console.warn(e));
     return log;
   }
 
   // -------------------------------------------------------------
   // CLOUD SYNC HELPERS
   // -------------------------------------------------------------
-  setAllFromCloud({ students, courses, results }) {
-    if (students && students.length > 0) {
+  setAllFromCloud({ students, courses, results, queries, auditLogs }) {
+    if (students && Array.isArray(students) && students.length > 0) {
       this.students = students.map(s => ({ ...s, id: String(s.id) }));
       this._save(STORAGE_KEY_STUDENTS, this.students);
     }
-    if (courses && courses.length > 0) {
+    if (courses && Array.isArray(courses) && courses.length > 0) {
       this.courses = courses.map(c => ({ ...c, id: String(c.id) }));
       this._save(STORAGE_KEY_COURSES, this.courses);
     }
-    if (results && results.length > 0) {
+    if (results && Array.isArray(results) && results.length > 0) {
       this.results = results.map(r => ({ ...r, id: String(r.id) }));
       this._save(STORAGE_KEY_RESULTS, this.results);
+    }
+    if (queries && Array.isArray(queries) && queries.length > 0) {
+      this.queries = queries.map(q => ({ ...q, id: String(q.id) }));
+      this._save(STORAGE_KEY_QUERIES, this.queries);
+    }
+    if (auditLogs && Array.isArray(auditLogs) && auditLogs.length > 0) {
+      this.auditLogs = auditLogs.map(a => ({
+        ...a,
+        ...(a.details || {}),
+        id: String(a.id),
+        timestamp: a.created_at || a.timestamp
+      }));
+      this._save(STORAGE_KEY_AUDIT, this.auditLogs);
     }
   }
 

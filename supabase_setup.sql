@@ -61,10 +61,44 @@ CREATE TABLE IF NOT EXISTS public.results (
     remark TEXT,
     level TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_results_student_course_session_sem UNIQUE (student_id, course_id, session, semester)
+);
+
+-- 4. Create result_queries table (HOD / Exam Officer Query Workflow)
+CREATE TABLE IF NOT EXISTS public.result_queries (
+    id TEXT PRIMARY KEY,
+    student_id TEXT,
+    student_name TEXT,
+    matric_no TEXT,
+    course_id TEXT,
+    course_code TEXT,
+    course_title TEXT,
+    original_score NUMERIC,
+    proposed_score NUMERIC,
+    approved_score NUMERIC,
+    reason TEXT,
+    requested_by TEXT,
+    status TEXT DEFAULT 'PENDING',
+    resolution_note TEXT,
+    resolved_by TEXT,
+    resolved_at TIMESTAMPTZ,
+    session TEXT,
+    semester TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Create Indexes for High Performance
+-- 5. Create audit_logs table (Permanent Ledger)
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id TEXT PRIMARY KEY,
+    action TEXT NOT NULL,
+    title TEXT NOT NULL,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Indexes
 CREATE INDEX IF NOT EXISTS idx_students_matric ON public.students(matric_no);
 CREATE INDEX IF NOT EXISTS idx_students_batch ON public.students(batch);
 CREATE INDEX IF NOT EXISTS idx_students_program ON public.students(student_type);
@@ -73,22 +107,23 @@ CREATE INDEX IF NOT EXISTS idx_courses_level_sem ON public.courses(level, semest
 CREATE INDEX IF NOT EXISTS idx_results_student ON public.results(student_id);
 CREATE INDEX IF NOT EXISTS idx_results_course ON public.results(course_id);
 
--- 5. Enable Row Level Security (RLS) and grant anon access
+-- 7. Enable Row Level Security (RLS)
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.result_queries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read/write via Supabase Anon Key
-CREATE POLICY "Allow public all access on students" ON public.students
-    FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access on students" ON public.students FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access on courses" ON public.courses FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access on results" ON public.results FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access on result_queries" ON public.result_queries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all access on audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow public all access on courses" ON public.courses
-    FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Allow public all access on results" ON public.results
-    FOR ALL USING (true) WITH CHECK (true);
-
--- Enable Realtime for all tables
+-- 8. Enable Realtime Replication
 ALTER PUBLICATION supabase_realtime ADD TABLE public.students;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.courses;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.results;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.result_queries;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;

@@ -15,7 +15,7 @@ import ChangePasswordModal from "./components/ChangePasswordModal";
 import ExcelResultUploadModal from "./components/ExcelResultUploadModal";
 
 import { db } from "./services/db";
-import { testCloudConnection } from "./services/supabase";
+import { testCloudConnection, pullAllFromCloud, subscribeToRealtime } from "./services/supabase";
 import { auth, ROLES } from "./services/auth";
 import "./App.css";
 
@@ -64,20 +64,51 @@ export default function App() {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
 
-  // Check initial cloud connection on mount
+  // Auto-sync with cloud on mount and listen to realtime updates across all laptops
   useEffect(() => {
-    async function checkCloud() {
+    let unsubscribe = null;
+
+    async function initCloudSync() {
       setCloudChecking(true);
       try {
         const res = await testCloudConnection();
-        setCloudConnected(res.success && !res.schemaNeeded);
+        const isOk = res.success && !res.schemaNeeded;
+        setCloudConnected(isOk);
+
+        if (isOk) {
+          // Immediately fetch the latest cloud database records so all laptops see fresh data
+          try {
+            const cloudData = await pullAllFromCloud();
+            db.setAllFromCloud(cloudData);
+            refreshData();
+          } catch (e) {
+            console.warn("Initial cloud data pull error:", e);
+          }
+
+          // Subscribe to live multi-user changes from other laptops
+          unsubscribe = subscribeToRealtime(async (payload) => {
+            console.log("Realtime event from another user:", payload);
+            try {
+              const freshData = await pullAllFromCloud();
+              db.setAllFromCloud(freshData);
+              refreshData();
+            } catch (err) {
+              console.warn("Realtime re-fetch error:", err);
+            }
+          });
+        }
       } catch (e) {
         setCloudConnected(false);
       } finally {
         setCloudChecking(false);
       }
     }
-    checkCloud();
+
+    initCloudSync();
+
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
   }, []);
 
   // Keyboard shortcut listener
@@ -107,6 +138,20 @@ export default function App() {
     setAuditLogs(a);
     if (selectedStudentId && !s.some((item) => String(item.id) === String(selectedStudentId))) {
       setSelectedStudentId(s.length > 0 ? s[0].id : null);
+    }
+  };
+
+  // Manual cloud refresh handler
+  const handleManualRefresh = async () => {
+    setCloudChecking(true);
+    try {
+      const cloudData = await pullAllFromCloud();
+      db.setAllFromCloud(cloudData);
+    } catch (e) {
+      console.warn("Manual refresh pull error:", e);
+    } finally {
+      setCloudChecking(false);
+      refreshData();
     }
   };
 
@@ -302,7 +347,7 @@ export default function App() {
           setIsTranscriptOpen(true);
         }}
         onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
-        onRefresh={refreshData}
+        onRefresh={handleManualRefresh}
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenQueries={() => {
