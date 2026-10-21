@@ -14,10 +14,24 @@ export const DEFAULT_SUPABASE_URL = "https://fqvmfkpknsaquayjlkwk.supabase.co";
 export const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdm1ma3BrbnNhcXVheWpsa3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5MDA2NjcsImV4cCI6MjEwNzQ3NjY2N30.KO5vX6MwBbR7S0jt3lWh67TLPqs6IK79pQvMpesAX3o";
 
 export function getStoredCloudCredentials() {
-  const localUrl = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY_URL) : null;
-  const localKey = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY_KEY) : null;
+  let localUrl = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY_URL) : null;
+  let localKey = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY_KEY) : null;
   const envUrl = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env.VITE_SUPABASE_URL : null;
   const envKey = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env.VITE_SUPABASE_ANON_KEY : null;
+
+  // Validate local storage credentials to prevent corrupted or stale URLs from breaking cloud sync
+  if (localUrl) {
+    localUrl = localUrl.trim();
+    if (!localUrl.startsWith("https://") || !localUrl.includes(".supabase.co")) {
+      localUrl = null;
+    }
+  }
+  if (localKey) {
+    localKey = localKey.trim();
+    if (localKey.length < 20) {
+      localKey = null;
+    }
+  }
 
   const url = localUrl || envUrl || DEFAULT_SUPABASE_URL;
   const key = localKey || envKey || DEFAULT_SUPABASE_KEY;
@@ -545,7 +559,9 @@ export async function fetchOfficerCredential(username) {
  */
 export async function saveOfficerCredentialToCloud({ username, password, hasChangedPassword, roleTitle, department, resetBy, resetAt }) {
   const client = getSupabaseClient();
-  if (!client || !username) return;
+  if (!client || !username) {
+    return { success: false, error: "Cloud client unavailable or username missing" };
+  }
   try {
     const cleanUser = username.trim().toLowerCase();
     const payload = {
@@ -558,10 +574,15 @@ export async function saveOfficerCredentialToCloud({ username, password, hasChan
       reset_at: resetAt || null,
       updated_at: new Date().toISOString()
     };
-    const { error } = await client.from("officer_credentials").upsert(payload, { onConflict: "username" });
-    if (error) console.warn("Supabase officer credential sync error:", error.message);
+    const { data, error } = await client.from("officer_credentials").upsert(payload, { onConflict: "username" }).select();
+    if (error) {
+      console.warn("Supabase officer credential sync error:", error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true, data };
   } catch (err) {
     console.warn("Supabase officer credential sync exception:", err);
+    return { success: false, error: err?.message || String(err) };
   }
 }
 
@@ -589,7 +610,7 @@ export async function fetchOfficerResetRequestsFromCloud() {
  */
 export async function saveOfficerResetRequestToCloud(req) {
   const client = getSupabaseClient();
-  if (!client || !req?.id) return;
+  if (!client || !req?.id) return { success: false, error: "Client or request missing" };
   try {
     const payload = {
       id: req.id,
@@ -606,10 +627,15 @@ export async function saveOfficerResetRequestToCloud(req) {
       requested_at: req.requestedAt || new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    const { error } = await client.from("officer_reset_requests").upsert(payload, { onConflict: "id" });
-    if (error) console.warn("Supabase reset request sync error:", error.message);
+    const { data, error } = await client.from("officer_reset_requests").upsert(payload, { onConflict: "id" }).select();
+    if (error) {
+      console.warn("Supabase reset request sync error:", error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true, data };
   } catch (err) {
     console.warn("Supabase reset request sync exception:", err);
+    return { success: false, error: err?.message || String(err) };
   }
 }
 

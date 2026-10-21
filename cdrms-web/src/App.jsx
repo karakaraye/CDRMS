@@ -85,8 +85,17 @@ export default function App() {
 
         if (isOk) {
           // Immediately sync cloud credentials & reset requests across devices
-          auth.syncCloudCredentials().catch(() => {});
+          await auth.syncCloudCredentials().catch(() => {});
           auth.syncCloudResetRequests().catch(() => {});
+
+          // If current logged-in officer has already changed password in cloud, dismiss mandatory modal
+          const current = auth.getCurrentUser();
+          if (current?.username) {
+            const cred = auth.getUserPasswordInfo(current.username);
+            if (cred.hasChangedPassword) {
+              setCurrentUser((prev) => (prev ? { ...prev, mustChangePassword: false } : null));
+            }
+          }
 
           // Immediately fetch the latest cloud database records so all laptops see fresh data
           try {
@@ -102,7 +111,14 @@ export default function App() {
             console.log("Realtime event from another user:", payload);
             try {
               if (payload?.table === "officer_credentials") {
-                auth.syncCloudCredentials().catch(() => {});
+                await auth.syncCloudCredentials().catch(() => {});
+                const fresh = auth.getCurrentUser();
+                if (fresh?.username) {
+                  const cred = auth.getUserPasswordInfo(fresh.username);
+                  if (cred.hasChangedPassword) {
+                    setCurrentUser((prev) => (prev ? { ...prev, mustChangePassword: false } : null));
+                  }
+                }
                 return;
               }
               if (payload?.table === "officer_reset_requests") {

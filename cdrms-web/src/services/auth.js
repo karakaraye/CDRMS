@@ -16,7 +16,7 @@ import {
   saveOfficerCredentialToCloud,
   fetchOfficerResetRequestsFromCloud,
   saveOfficerResetRequestToCloud,
-} from "./supabase";
+} from "./supabase.js";
 
 export const DEPARTMENTS = [
   {
@@ -336,19 +336,30 @@ class AuthService {
         const credMap = this._getUserCredentials();
         cloudCreds.forEach((c) => {
           if (c.username) {
-            credMap[c.username.toLowerCase().trim()] = {
+            const cleanUser = c.username.toLowerCase().trim();
+            credMap[cleanUser] = {
               password: c.password,
               hasChangedPassword: Boolean(c.has_changed_password),
               updatedAt: c.updated_at,
               resetBy: c.reset_by,
               resetAt: c.reset_at,
             };
+            if (this.currentUser && this.currentUser.username.toLowerCase() === cleanUser) {
+              if (c.has_changed_password) {
+                this.currentUser.mustChangePassword = false;
+                if (typeof sessionStorage !== "undefined") {
+                  sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
+                }
+              }
+            }
           }
         });
         this._saveUserCredentials(credMap);
       }
+      return cloudCreds;
     } catch (e) {
       console.warn("Could not sync cloud credentials:", e);
+      return [];
     }
   }
 
@@ -453,7 +464,13 @@ class AuthService {
         const parsed = JSON.parse(data);
         if (parsed?.username) {
           const credInfo = this.getUserPasswordInfo(parsed.username);
-          parsed.mustChangePassword = !credInfo.hasChangedPassword;
+          // If local cache shows password was changed OR session already has mustChangePassword === false, respect it!
+          // Never force mustChangePassword to true if it was already resolved as false!
+          if (credInfo.hasChangedPassword || parsed.mustChangePassword === false) {
+            parsed.mustChangePassword = false;
+          } else {
+            parsed.mustChangePassword = true;
+          }
         }
         return parsed;
       }
@@ -582,14 +599,16 @@ class AuthService {
     this._saveUserCredentials(creds);
 
     // 2. Persist to Supabase Cloud immediately across all user devices
+    let cloudSynced = false;
     try {
-      await saveOfficerCredentialToCloud({
+      const cloudRes = await saveOfficerCredentialToCloud({
         username: cleanUser,
         password: trimmedNew,
         hasChangedPassword: true,
         roleTitle: user.roleTitle,
         department: user.department,
       });
+      cloudSynced = Boolean(cloudRes?.success);
     } catch (e) {
       console.warn("Cloud credential sync exception:", e);
     }
@@ -604,6 +623,7 @@ class AuthService {
     return {
       success: true,
       user: this.currentUser,
+      cloudSynced,
       message: "Password updated successfully across all your devices!",
     };
   }
