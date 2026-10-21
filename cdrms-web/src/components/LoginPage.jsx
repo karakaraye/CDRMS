@@ -18,9 +18,20 @@ import {
   Clock,
   Sparkles,
   RotateCcw,
+  KeyRound,
 } from "lucide-react";
 import { DEPARTMENTS, getUsersForTrack, auth } from "../services/auth";
 import ForgotPasswordModal from "./ForgotPasswordModal";
+
+export const FACULTY_ADMIN_DEPT = {
+  id: "all",
+  name: "Faculty Deanery & Administration",
+  shortName: "Faculty Administration",
+  code: "DEAN",
+  hasPartTime: false,
+  programs: ["All"],
+  description: "Universal administrative access across all 5 departments, courses, and students simultaneously.",
+};
 
 export default function LoginPage({ onLoginSuccess }) {
   // Navigation state: "departments" | "divisions" | "officers"
@@ -39,6 +50,8 @@ export default function LoginPage({ onLoginSuccess }) {
   // Map icons to departments
   const getDeptIcon = (deptId) => {
     switch (deptId) {
+      case "all":
+        return <ShieldCheck size={26} className="dept-icon-svg" />;
       case "management":
         return <Building size={26} className="dept-icon-svg" />;
       case "project_management":
@@ -61,7 +74,11 @@ export default function LoginPage({ onLoginSuccess }) {
     setUsername("");
     setPassword("");
     setError("");
-    if (dept.hasPartTime) {
+    if (dept.id === "all") {
+      // Universal Dean / Admin access
+      setSelectedProgram("All");
+      setStep("officers");
+    } else if (dept.hasPartTime) {
       // Management has both Full-Time and Part-Time
       setStep("divisions");
     } else {
@@ -227,14 +244,93 @@ export default function LoginPage({ onLoginSuccess }) {
       {step === "departments" && (
         <main className="gateway-main-container">
           <div className="gateway-section-intro">
-            <h2>Select Academic Department</h2>
+            <h2>Select Academic Department or Administrative Access</h2>
             <p>
-              Choose your department within the Faculty of Management Sciences to proceed
-              to examination officer sign-in and result management records.
+              Choose your department or sign in as Faculty Administrator / Dean to view and manage examination records.
             </p>
           </div>
 
+          {/* QUICK DIRECT SIGN-IN BAR */}
+          <div className="gateway-quick-login-box">
+            <div className="quick-login-header">
+              <KeyRound size={16} className="text-sky-400" />
+              <span>Direct Sign-In with Username & Password:</span>
+            </div>
+            {error && (
+              <div className="login-error-alert" style={{ marginBottom: "12px" }}>
+                <AlertCircle size={15} />
+                <span>{error}</span>
+              </div>
+            )}
+            <form onSubmit={handleFormSubmit} className="quick-login-form">
+              <div className="quick-input-group">
+                <User size={14} className="input-icon" />
+                <input
+                  type="text"
+                  placeholder="Officer username (e.g. pm_100, admin, hod)"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="quick-input-group">
+                <Lock size={14} className="input-icon" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="quick-eye-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              <button type="submit" className="btn btn-primary quick-submit-btn">
+                Sign In
+              </button>
+            </form>
+          </div>
+
           <div className="department-cards-grid">
+            {/* UNIVERSAL DEANERY & ADMINISTRATION CARD */}
+            <div
+              className="dept-portal-card admin-portal-card"
+              style={{
+                background: "linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)",
+                border: "1px solid rgba(56, 189, 248, 0.35)",
+              }}
+              onClick={() => handleSelectDepartment(FACULTY_ADMIN_DEPT)}
+            >
+              <div className="dept-card-top">
+                <div className="dept-icon-wrapper" style={{ background: "#0284c7", color: "#ffffff" }}>
+                  <ShieldCheck size={26} />
+                </div>
+                <div className="dept-code-tag" style={{ background: "#e0f2fe", color: "#0369a1" }}>DEAN</div>
+              </div>
+
+              <div className="dept-card-body">
+                <h3 className="dept-card-name">{FACULTY_ADMIN_DEPT.name}</h3>
+                <p className="dept-card-desc">{FACULTY_ADMIN_DEPT.description}</p>
+              </div>
+
+              <div className="dept-card-footer">
+                <div className="dept-modes-pill pill-dual" style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
+                  <Sparkles size={13} />
+                  <span>All 5 Departments & Programs</span>
+                </div>
+                <div className="dept-select-action">
+                  <span>Sign In as Dean / Admin</span>
+                  <ChevronRight size={16} />
+                </div>
+              </div>
+            </div>
+
+            {/* 5 DEPARTMENTS CARDS */}
             {DEPARTMENTS.map((dept) => (
               <div
                 key={dept.id}

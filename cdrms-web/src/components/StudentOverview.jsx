@@ -37,7 +37,12 @@ export default function StudentOverview({
     );
   }
 
-  const studentResults = results.filter((r) => String(r.student_id) === String(student.id));
+  const studentResults = results.filter(
+    (r) =>
+      String(r.student_id) === String(student.id) ||
+      (student.matric_no && String(r.student_id) === String(student.matric_no)) ||
+      (student.matric_no && r.matric_no && String(r.matric_no) === String(student.matric_no))
+  );
   const metrics = calculateStudentMetrics(studentResults, courses);
 
   const degreeBadgeClass =
@@ -68,7 +73,7 @@ export default function StudentOverview({
             <h4 className="student-card-name">{student.fullname}</h4>
             <div className="student-card-matric">{student.matric_no}</div>
             <div className="student-card-meta">
-              <span>{student.batch || "U2022"}</span> • <span>{student.student_type || "Full-Time"}</span>
+              <span style={{ color: "#0284c7", fontWeight: "700" }}>{student.department ? student.department.replace("Department of ", "") : "Management"}</span> • <span>{student.batch || "U2022"}</span> • <span>{student.student_type || "Full-Time"}</span>
             </div>
           </div>
         </div>

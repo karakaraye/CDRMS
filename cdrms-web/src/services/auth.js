@@ -265,14 +265,39 @@ export const DEFAULT_USERS = [
     program: "Full-Time",
     description: "Executive oversight of all records. Resolves queries & authorizes edits.",
   },
+
+  // Global Administrative & Faculty-Wide Accounts (Access All 5 Departments)
+  {
+    username: "admin",
+    password: "password123",
+    role: ROLES.HOD,
+    roleTitle: "Faculty System Administrator",
+    level: "All",
+    department: "All Departments",
+    departmentId: "all",
+    program: "All",
+    description: "Universal administrative access across all 5 departments and all student records.",
+  },
+  {
+    username: "dean",
+    password: "password123",
+    role: ROLES.HOD,
+    roleTitle: "Dean of Faculty (Management Sciences)",
+    level: "All",
+    department: "All Departments",
+    departmentId: "all",
+    program: "All",
+    description: "Executive faculty-wide oversight across all departmental programs and batches.",
+  },
 ];
  
 export function getUsersForTrack(deptId, program) {
   const legacyUsernames = ["officer100", "officer200", "officer300", "officer400", "super_ft", "super_pt", "hod"];
   return DEFAULT_USERS.filter((u) => {
     if (legacyUsernames.includes(u.username)) return false;
+    if (deptId === "all") return u.departmentId === "all";
     if (u.departmentId !== deptId) return false;
-    if (program && u.program !== program) return false;
+    if (program && program !== "All" && u.program !== program) return false;
     return true;
   });
 }
@@ -333,16 +358,20 @@ class AuthService {
 
   _loadUser() {
     try {
-      if (typeof sessionStorage !== "undefined") {
-        const data = sessionStorage.getItem(STORAGE_KEY_AUTH);
-        if (data) {
-          const parsed = JSON.parse(data);
-          if (parsed?.username) {
-            const credInfo = this.getUserPasswordInfo(parsed.username);
-            parsed.mustChangePassword = !credInfo.hasChangedPassword;
-          }
-          return parsed;
+      let data = null;
+      if (typeof localStorage !== "undefined") {
+        data = localStorage.getItem(STORAGE_KEY_AUTH);
+      }
+      if (!data && typeof sessionStorage !== "undefined") {
+        data = sessionStorage.getItem(STORAGE_KEY_AUTH);
+      }
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed?.username) {
+          const credInfo = this.getUserPasswordInfo(parsed.username);
+          parsed.mustChangePassword = !credInfo.hasChangedPassword;
         }
+        return parsed;
       }
     } catch (e) {
       console.error("Error reading auth state:", e);
@@ -377,6 +406,9 @@ class AuthService {
     };
     delete this.currentUser.password;
 
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
+    }
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
     }
@@ -429,6 +461,9 @@ class AuthService {
 
     if (this.currentUser && this.currentUser.username.toLowerCase() === cleanUser) {
       this.currentUser.mustChangePassword = false;
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
+      }
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
       }
@@ -463,6 +498,9 @@ class AuthService {
     // If currently logged in as this user, flag them to change password
     if (this.currentUser && this.currentUser.username.toLowerCase() === cleanUser) {
       this.currentUser.mustChangePassword = true;
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
+      }
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.currentUser));
       }
@@ -699,6 +737,7 @@ class AuthService {
     }
     try {
       if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(STORAGE_KEY_AUTH);
         localStorage.removeItem("cdrms_auth_user");
       }
     } catch (e) {}

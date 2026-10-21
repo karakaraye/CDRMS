@@ -14,11 +14,25 @@ export default function TranscriptModal({
 
   if (!isOpen || !student) return null;
 
-  const studentResults = results.filter((r) => String(r.student_id) === String(student.id));
+  const studentResults = results.filter(
+    (r) =>
+      String(r.student_id) === String(student.id) ||
+      (student.matric_no && String(r.student_id) === String(student.matric_no)) ||
+      (student.matric_no && r.matric_no && String(r.matric_no) === String(student.matric_no))
+  );
 
-  // Map courses
+  // Map courses with multi-key indexing
   const courseMap = new Map();
-  courses.forEach((c) => courseMap.set(String(c.id), c));
+  courses.forEach((c) => {
+    if (c.id !== undefined && c.id !== null) {
+      courseMap.set(String(c.id), c);
+      courseMap.set(Number(c.id), c);
+    }
+    if (c.course_code) {
+      courseMap.set(c.course_code.trim().toUpperCase(), c);
+      courseMap.set(c.course_code.replace(/\s+/g, "").toUpperCase(), c);
+    }
+  });
 
   // Group by Level (Year) and Semester
   const levels = ["100", "200", "300", "400", "500", "600"];
@@ -40,10 +54,15 @@ export default function TranscriptModal({
   const waivedCoursesList = [];
 
   studentResults.forEach((r) => {
-    const course = courseMap.get(String(r.course_id)) || {};
+    const course =
+      courseMap.get(String(r.course_id)) ||
+      courseMap.get(Number(r.course_id)) ||
+      (r.course_code ? courseMap.get(r.course_code.trim().toUpperCase()) : null) ||
+      (r.course_code ? courseMap.get(r.course_code.replace(/\s+/g, "").toUpperCase()) : null) ||
+      {};
     const lvl = r.level || course.level || "100";
     const sem = r.semester || course.semester || "First";
-    const cu = Number(course.credit_units || r.credit_units || 0);
+    const cu = Number(course.credit_units || r.credit_units || 2);
     const score = Number(r.score || 0);
     const isWaived = Boolean(r.is_waived);
     const isCarryover = Boolean(r.is_carryover);

@@ -419,8 +419,8 @@ class DataStore {
     };
 
     const existingIdx = this.results.findIndex(r =>
-      String(r.student_id) === String(record.student_id) &&
-      String(r.course_id) === String(record.course_id) &&
+      (String(r.student_id) === String(record.student_id) || (record.matric_no && String(r.matric_no) === String(record.matric_no))) &&
+      (String(r.course_id) === String(record.course_id) || (record.course_code && r.course_code && r.course_code.trim().toUpperCase() === record.course_code.trim().toUpperCase())) &&
       r.session === record.session &&
       r.semester === record.semester
     );
@@ -462,8 +462,8 @@ class DataStore {
       };
 
       const existingIdx = this.results.findIndex(item =>
-        String(item.student_id) === String(record.student_id) &&
-        String(item.course_id) === String(record.course_id) &&
+        (String(item.student_id) === String(record.student_id) || (record.matric_no && String(item.matric_no) === String(record.matric_no))) &&
+        (String(item.course_id) === String(record.course_id) || (record.course_code && item.course_code && item.course_code.trim().toUpperCase() === record.course_code.trim().toUpperCase())) &&
         item.session === record.session &&
         item.semester === record.semester
       );

@@ -11,7 +11,8 @@ import {
   Search,
   Filter,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Building,
 } from "lucide-react";
 
 export default function StudentList({
@@ -28,6 +29,9 @@ export default function StudentList({
   selectedBatch,
   searchTerm,
   currentUser,
+  allStudentsCount = 0,
+  selectedDepartmentFilter = "all",
+  onSwitchToAllDepartments,
 }) {
   const showFullTime = !currentUser || currentUser.program === "All" || currentUser.program === "Full-Time";
   const showPartTime = !currentUser || currentUser.program === "All" || currentUser.program === "Part-Time";
@@ -128,16 +132,29 @@ export default function StudentList({
               <tr>
                 <td colSpan={8} className="empty-table-cell">
                   <div className="empty-state">
-                    <User size={36} className="empty-icon" />
-                    <h4>No student records found</h4>
+                    <Building size={36} className="empty-icon" />
+                    <h4>No student records found in this view</h4>
                     <p>
                       {searchTerm
                         ? `No results matching "${searchTerm}". Try a different keyword.`
+                        : allStudentsCount > 0 && selectedDepartmentFilter !== "all"
+                        ? `There are no students under this department filter, but ${allStudentsCount} student(s) exist across other faculty departments.`
                         : "There are no students in this category yet."}
                     </p>
-                    <button className="btn btn-primary btn-sm" onClick={onOpenAddStudent}>
-                      <UserPlus size={14} /> Add Student
-                    </button>
+                    <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "12px", flexWrap: "wrap" }}>
+                      {allStudentsCount > 0 && selectedDepartmentFilter !== "all" && onSwitchToAllDepartments && (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={onSwitchToAllDepartments}
+                        >
+                          View All Departments ({allStudentsCount})
+                        </button>
+                      )}
+                      <button className="btn btn-secondary btn-sm" onClick={onOpenAddStudent}>
+                        <UserPlus size={14} /> Add Student
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -157,9 +174,16 @@ export default function StudentList({
                     <td className="name-cell">
                       <div className="student-name-wrapper">
                         <span className="student-fullname">{student.fullname}</span>
-                        {student.email && (
-                          <span className="student-subtext">{student.email}</span>
-                        )}
+                        <div className="student-subline-meta" style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "2px" }}>
+                          {student.department && (
+                            <span className="student-dept-tag">
+                              {student.department.replace("Department of ", "")}
+                            </span>
+                          )}
+                          {student.email && (
+                            <span className="student-subtext">{student.email}</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td>

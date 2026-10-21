@@ -14,23 +14,24 @@ export const DEFAULT_SUPABASE_URL = "https://fqvmfkpknsaquayjlkwk.supabase.co";
 export const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdm1ma3BrbnNhcXVheWpsa3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5MDA2NjcsImV4cCI6MjEwNzQ3NjY2N30.KO5vX6MwBbR7S0jt3lWh67TLPqs6IK79pQvMpesAX3o";
 
 export function getStoredCloudCredentials() {
-  const url =
-    localStorage.getItem(STORAGE_KEY_URL) ||
-    import.meta.env.VITE_SUPABASE_URL ||
-    DEFAULT_SUPABASE_URL;
-  const key =
-    localStorage.getItem(STORAGE_KEY_KEY) ||
-    import.meta.env.VITE_SUPABASE_ANON_KEY ||
-    DEFAULT_SUPABASE_KEY;
+  const localUrl = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY_URL) : null;
+  const localKey = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY_KEY) : null;
+  const envUrl = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env.VITE_SUPABASE_URL : null;
+  const envKey = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env.VITE_SUPABASE_ANON_KEY : null;
+
+  const url = localUrl || envUrl || DEFAULT_SUPABASE_URL;
+  const key = localKey || envKey || DEFAULT_SUPABASE_KEY;
   return { url, key };
 }
 
 export function saveCloudCredentials(url, key) {
-  if (url) localStorage.setItem(STORAGE_KEY_URL, url.trim());
-  else localStorage.removeItem(STORAGE_KEY_URL);
+  if (typeof localStorage !== "undefined") {
+    if (url) localStorage.setItem(STORAGE_KEY_URL, url.trim());
+    else localStorage.removeItem(STORAGE_KEY_URL);
 
-  if (key) localStorage.setItem(STORAGE_KEY_KEY, key.trim());
-  else localStorage.removeItem(STORAGE_KEY_KEY);
+    if (key) localStorage.setItem(STORAGE_KEY_KEY, key.trim());
+    else localStorage.removeItem(STORAGE_KEY_KEY);
+  }
 
   // Reset cached client
   if (supabaseInstance) {
@@ -302,7 +303,10 @@ export async function saveResultToCloud(record) {
 
   const payload = {
     student_id: String(record.student_id),
+    matric_no: record.matric_no || null,
     course_id: String(record.course_id),
+    course_code: record.course_code || null,
+    credit_units: record.credit_units ? Number(record.credit_units) : null,
     score: Number(record.score || 0),
     grade: record.grade || "F",
     grade_point: Number(record.grade_point || 0),
@@ -330,7 +334,10 @@ export async function saveBulkResultsToCloud(resultsList) {
 
   const payloads = resultsList.map(r => ({
     student_id: String(r.student_id),
+    matric_no: r.matric_no || null,
     course_id: String(r.course_id),
+    course_code: r.course_code || null,
+    credit_units: r.credit_units ? Number(r.credit_units) : null,
     score: Number(r.score || 0),
     grade: r.grade || "F",
     grade_point: Number(r.grade_point || 0),

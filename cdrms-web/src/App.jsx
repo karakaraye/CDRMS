@@ -16,7 +16,7 @@ import ExcelResultUploadModal from "./components/ExcelResultUploadModal";
 
 import { db } from "./services/db";
 import { testCloudConnection, pullAllFromCloud, subscribeToRealtime } from "./services/supabase";
-import { auth, ROLES } from "./services/auth";
+import { auth, ROLES, DEPARTMENTS } from "./services/auth";
 import "./App.css";
 
 export default function App() {
@@ -32,6 +32,13 @@ export default function App() {
   const [results, setResults] = useState(() => db.getAllData().results);
   const [queries, setQueries] = useState(() => db.getQueries());
   const [auditLogs, setAuditLogs] = useState(() => db.getAuditLogs());
+
+  // Department filter state: "all" or specific deptId
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState(() => {
+    const u = auth.getCurrentUser();
+    if (!u || u.departmentId === "all" || u.department === "All Departments") return "all";
+    return u.departmentId || "all";
+  });
 
   // Filter & Selection state
   const [selectedStudentId, setSelectedStudentId] = useState(() => {
@@ -232,29 +239,25 @@ export default function App() {
 
   // Department-scoped students
   const deptStudents = useMemo(() => {
-    if (!currentUser?.department) return students;
+    if (!selectedDepartmentFilter || selectedDepartmentFilter === "all") return students;
     return students.filter((s) => {
       const sDept = (s.department || "").toLowerCase().trim();
-      const uDept = (currentUser.department || "").toLowerCase().trim();
-      const uDeptId = (currentUser.departmentId || "").toLowerCase().trim();
       return (
-        sDept === uDept ||
-        sDept === uDeptId ||
-        (uDeptId === "management" &&
+        (selectedDepartmentFilter === "management" &&
           (sDept === "management" ||
             (sDept.includes("management") &&
               !sDept.includes("project") &&
               !sDept.includes("employee") &&
               !sDept.includes("innovation") &&
               !sDept.includes("procurement")))) ||
-        (uDeptId === "project_management" && sDept.includes("project")) ||
-        (uDeptId === "employee_relations" && sDept.includes("employee")) ||
-        (uDeptId === "innovation_entrepreneurship" &&
+        (selectedDepartmentFilter === "project_management" && sDept.includes("project")) ||
+        (selectedDepartmentFilter === "employee_relations" && sDept.includes("employee")) ||
+        (selectedDepartmentFilter === "innovation_entrepreneurship" &&
           (sDept.includes("innovation") || sDept.includes("entrepreneurship"))) ||
-        (uDeptId === "procurement_management" && sDept.includes("procurement"))
+        (selectedDepartmentFilter === "procurement_management" && sDept.includes("procurement"))
       );
     });
-  }, [students, currentUser]);
+  }, [students, selectedDepartmentFilter]);
 
   // Filtered students computation
   const filteredStudents = useMemo(() => {
@@ -315,6 +318,11 @@ export default function App() {
       <LoginPage
         onLoginSuccess={(user) => {
           setCurrentUser(user);
+          if (user.departmentId === "all" || user.department === "All Departments") {
+            setSelectedDepartmentFilter("all");
+          } else if (user.departmentId) {
+            setSelectedDepartmentFilter(user.departmentId);
+          }
           if (user.program && user.program !== "All") {
             setActiveProgram(user.program);
           } else {
@@ -349,6 +357,10 @@ export default function App() {
         onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
         onRefresh={handleManualRefresh}
         currentUser={currentUser}
+        departments={DEPARTMENTS}
+        selectedDepartmentFilter={selectedDepartmentFilter}
+        onSelectDepartmentFilter={setSelectedDepartmentFilter}
+        allStudents={students}
         onLogout={handleLogout}
         onOpenQueries={() => {
           setQueriesModalTab("list");
@@ -452,6 +464,9 @@ export default function App() {
             selectedBatch={selectedBatch}
             searchTerm={searchTerm}
             currentUser={currentUser}
+            allStudentsCount={students.length}
+            selectedDepartmentFilter={selectedDepartmentFilter}
+            onSwitchToAllDepartments={() => setSelectedDepartmentFilter("all")}
           />
         </div>
 

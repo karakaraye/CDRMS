@@ -171,7 +171,9 @@ export default function WorksheetModal({
 
     const currentResults = results.filter(
       (r) =>
-        String(r.student_id) === String(selectedStudentId) &&
+        (String(r.student_id) === String(selectedStudentId) ||
+          (student?.matric_no && String(r.student_id) === String(student.matric_no)) ||
+          (student?.matric_no && r.matric_no && String(r.matric_no) === String(student.matric_no))) &&
         (r.session === session || (!r.session && String(r.level) === String(level))) &&
         r.semester === semester &&
         (String(r.level) === String(level) || (!r.level && !isExtraYear))
@@ -183,7 +185,13 @@ export default function WorksheetModal({
 
     standardCurriculumCourses.forEach((c) => {
       stdCourseIdSet.add(String(c.id));
-      const existing = currentResults.find((r) => String(r.course_id) === String(c.id));
+      const existing = currentResults.find(
+        (r) =>
+          String(r.course_id) === String(c.id) ||
+          (c.course_code &&
+            r.course_code &&
+            r.course_code.trim().toUpperCase() === c.course_code.trim().toUpperCase())
+      );
       if (existing) {
         stdMap[c.id] = {
           id: existing.id,
@@ -480,7 +488,10 @@ export default function WorksheetModal({
         resultsToSave.push({
           ...(entry.id ? { id: entry.id } : {}),
           student_id: selectedStudentId,
+          matric_no: activeStudent?.matric_no || null,
           course_id: c.id,
+          course_code: c.course_code,
+          credit_units: Number(c.credit_units || 2),
           score: scoreNum,
           grade: isWaived ? (entry.waiver_grade || "W") : letter,
           grade_point: isWaived ? 1.0 : point,
@@ -503,11 +514,15 @@ export default function WorksheetModal({
         const isCarryover = Boolean(item.is_carryover);
         const isWaived = Boolean(item.is_waived);
         const { letter, point } = scoreToGrade(scoreNum, isCarryover);
+        const course = courses.find((c) => String(c.id) === String(item.courseId));
 
         resultsToSave.push({
           ...(item.id ? { id: item.id } : {}),
           student_id: selectedStudentId,
+          matric_no: activeStudent?.matric_no || null,
           course_id: item.courseId,
+          course_code: course?.course_code || null,
+          credit_units: Number(course?.credit_units || 2),
           score: scoreNum,
           grade: isWaived ? (item.waiver_grade || "W") : letter,
           grade_point: isWaived ? 1.0 : point,

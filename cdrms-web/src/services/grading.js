@@ -95,9 +95,18 @@ export function calculateStudentMetrics(results = [], courses = []) {
     };
   }
 
-  // Create course map
+  // Create multi-key course map for 100% resilient course lookup
   const courseMap = new Map();
-  courses.forEach(c => courseMap.set(c.id, c));
+  courses.forEach((c) => {
+    if (c.id !== undefined && c.id !== null) {
+      courseMap.set(String(c.id), c);
+      courseMap.set(Number(c.id), c);
+    }
+    if (c.course_code) {
+      courseMap.set(c.course_code.trim().toUpperCase(), c);
+      courseMap.set(c.course_code.replace(/\s+/g, "").toUpperCase(), c);
+    }
+  });
 
   let totalRegisteredCU = 0;
   let totalEarnedCU = 0;
@@ -109,13 +118,20 @@ export function calculateStudentMetrics(results = [], courses = []) {
   const yearBreakdown = {};
   const outstandingMap = new Map();
 
-  results.forEach(res => {
-    const course = courseMap.get(res.course_id) || {};
-    const cu = Number(course.credit_units || res.credit_units || 0);
+  results.forEach((res) => {
+    const course =
+      courseMap.get(String(res.course_id)) ||
+      courseMap.get(Number(res.course_id)) ||
+      (res.course_code ? courseMap.get(res.course_code.trim().toUpperCase()) : null) ||
+      (res.course_code ? courseMap.get(res.course_code.replace(/\s+/g, "").toUpperCase()) : null) ||
+      {};
+
+    // Credit units fallback: from course, from result record, or standard default (2)
+    const cu = Number(course.credit_units || res.credit_units || 2);
     const score = Number(res.score || 0);
     const isWaived = Boolean(res.is_waived);
     const grade = isWaived ? (res.waiver_grade || "W") : (res.grade || scoreToGrade(score, res.is_carryover).letter);
-    const gp = isWaived ? 1.0 : (res.grade_point !== undefined ? Number(res.grade_point) : scoreToGrade(score, res.is_carryover).point);
+    const gp = isWaived ? 1.0 : (res.grade_point !== undefined && res.grade_point !== null ? Number(res.grade_point) : scoreToGrade(score, res.is_carryover).point);
     const qp = cu * gp;
 
     const level = res.level || course.level || "100";
