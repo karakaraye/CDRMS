@@ -60,7 +60,7 @@ export default function ChangePasswordModal({
     passwordsMatch &&
     !isSubmitting;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccessMsg("");
@@ -92,22 +92,27 @@ export default function ChangePasswordModal({
 
     setIsSubmitting(true);
 
-    const res = auth.changePassword(currentUser.username, currentPassword, newPassword);
+    try {
+      const res = await auth.changePassword(currentUser.username, currentPassword, newPassword);
 
-    if (res.success) {
-      setSuccessMsg(res.message);
-      setTimeout(() => {
+      if (res.success) {
+        setSuccessMsg(res.message);
+        setTimeout(() => {
+          setIsSubmitting(false);
+          if (onSuccess) {
+            onSuccess(res.user);
+          }
+          if (onClose) {
+            onClose();
+          }
+        }, 1000);
+      } else {
         setIsSubmitting(false);
-        if (onSuccess) {
-          onSuccess(res.user);
-        }
-        if (onClose) {
-          onClose();
-        }
-      }, 1000);
-    } else {
+        setError(res.message);
+      }
+    } catch (err) {
       setIsSubmitting(false);
-      setError(res.message);
+      setError("Failed to update password across devices. Please check your internet connection.");
     }
   };
 

@@ -496,3 +496,120 @@ export function subscribeToRealtime(onChange) {
     }
   };
 }
+
+/**
+ * Fetch all officer credentials from Supabase cloud
+ */
+export async function fetchOfficerCredentialsFromCloud() {
+  const client = getSupabaseClient();
+  if (!client) return [];
+  try {
+    const { data, error } = await client.from("officer_credentials").select("*");
+    if (error) {
+      console.warn("fetchOfficerCredentialsFromCloud error:", error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("fetchOfficerCredentialsFromCloud exception:", err);
+    return [];
+  }
+}
+
+/**
+ * Fetch credential for a specific officer by username
+ */
+export async function fetchOfficerCredential(username) {
+  const client = getSupabaseClient();
+  if (!client || !username) return null;
+  try {
+    const cleanUser = username.trim().toLowerCase();
+    const { data, error } = await client
+      .from("officer_credentials")
+      .select("*")
+      .eq("username", cleanUser)
+      .maybeSingle();
+    if (error) {
+      console.warn("fetchOfficerCredential error:", error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn("fetchOfficerCredential exception:", err);
+    return null;
+  }
+}
+
+/**
+ * Save / update officer credential in Supabase cloud
+ */
+export async function saveOfficerCredentialToCloud({ username, password, hasChangedPassword, roleTitle, department, resetBy, resetAt }) {
+  const client = getSupabaseClient();
+  if (!client || !username) return;
+  try {
+    const cleanUser = username.trim().toLowerCase();
+    const payload = {
+      username: cleanUser,
+      password: password || "password123",
+      has_changed_password: Boolean(hasChangedPassword),
+      role_title: roleTitle || null,
+      department: department || null,
+      reset_by: resetBy || null,
+      reset_at: resetAt || null,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await client.from("officer_credentials").upsert(payload, { onConflict: "username" });
+    if (error) console.warn("Supabase officer credential sync error:", error.message);
+  } catch (err) {
+    console.warn("Supabase officer credential sync exception:", err);
+  }
+}
+
+/**
+ * Fetch officer reset requests from Supabase cloud
+ */
+export async function fetchOfficerResetRequestsFromCloud() {
+  const client = getSupabaseClient();
+  if (!client) return [];
+  try {
+    const { data, error } = await client.from("officer_reset_requests").select("*").order("requested_at", { ascending: false });
+    if (error) {
+      console.warn("fetchOfficerResetRequestsFromCloud error:", error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("fetchOfficerResetRequestsFromCloud exception:", err);
+    return [];
+  }
+}
+
+/**
+ * Save officer reset request to Supabase cloud
+ */
+export async function saveOfficerResetRequestToCloud(req) {
+  const client = getSupabaseClient();
+  if (!client || !req?.id) return;
+  try {
+    const payload = {
+      id: req.id,
+      username: (req.username || "").toLowerCase().trim(),
+      role_title: req.roleTitle || null,
+      department_id: req.departmentId || null,
+      department: req.department || null,
+      program: req.program || null,
+      level: req.level || null,
+      reason: req.reason || "",
+      status: req.status || "PENDING_HEAD_OFFICER",
+      head_officer_approval: req.headOfficerApproval || null,
+      hod_execution: req.hodExecution || null,
+      requested_at: req.requestedAt || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await client.from("officer_reset_requests").upsert(payload, { onConflict: "id" });
+    if (error) console.warn("Supabase reset request sync error:", error.message);
+  } catch (err) {
+    console.warn("Supabase reset request sync exception:", err);
+  }
+}
+

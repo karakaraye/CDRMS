@@ -156,3 +156,40 @@ ALTER TABLE public.results ADD COLUMN IF NOT EXISTS credit_units INTEGER DEFAULT
 ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_data TEXT;
 ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_type TEXT;
+
+-- 9. Create officer_credentials table (Multi-device password sync)
+CREATE TABLE IF NOT EXISTS public.officer_credentials (
+    username TEXT PRIMARY KEY,
+    password TEXT NOT NULL DEFAULT 'password123',
+    has_changed_password BOOLEAN NOT NULL DEFAULT FALSE,
+    role_title TEXT,
+    department TEXT,
+    reset_by TEXT,
+    reset_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.officer_credentials ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public all access on officer_credentials" ON public.officer_credentials;
+CREATE POLICY "Allow public all access on officer_credentials" ON public.officer_credentials FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE public.officer_credentials;
+
+-- 10. Create officer_reset_requests table (Multi-device password recovery workflow)
+CREATE TABLE IF NOT EXISTS public.officer_reset_requests (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    role_title TEXT,
+    department_id TEXT,
+    department TEXT,
+    program TEXT,
+    level TEXT,
+    reason TEXT,
+    status TEXT DEFAULT 'PENDING_HEAD_OFFICER',
+    head_officer_approval JSONB,
+    hod_execution JSONB,
+    requested_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.officer_reset_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public all access on officer_reset_requests" ON public.officer_reset_requests;
+CREATE POLICY "Allow public all access on officer_reset_requests" ON public.officer_reset_requests FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE public.officer_reset_requests;

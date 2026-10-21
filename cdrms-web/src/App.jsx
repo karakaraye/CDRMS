@@ -83,6 +83,10 @@ export default function App() {
         setCloudConnected(isOk);
 
         if (isOk) {
+          // Immediately sync cloud credentials & reset requests across devices
+          auth.syncCloudCredentials().catch(() => {});
+          auth.syncCloudResetRequests().catch(() => {});
+
           // Immediately fetch the latest cloud database records so all laptops see fresh data
           try {
             const cloudData = await pullAllFromCloud();
@@ -96,6 +100,14 @@ export default function App() {
           unsubscribe = subscribeToRealtime(async (payload) => {
             console.log("Realtime event from another user:", payload);
             try {
+              if (payload?.table === "officer_credentials") {
+                auth.syncCloudCredentials().catch(() => {});
+                return;
+              }
+              if (payload?.table === "officer_reset_requests") {
+                auth.syncCloudResetRequests().catch(() => {});
+                return;
+              }
               const freshData = await pullAllFromCloud();
               db.setAllFromCloud(freshData);
               refreshData();

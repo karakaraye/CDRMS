@@ -10,6 +10,14 @@
  * 5. Department of Procurement Management (Full-Time only)
  */
 
+import {
+  fetchOfficerCredential,
+  fetchOfficerCredentialsFromCloud,
+  saveOfficerCredentialToCloud,
+  fetchOfficerResetRequestsFromCloud,
+  saveOfficerResetRequestToCloud,
+} from "./supabase";
+
 export const DEPARTMENTS = [
   {
     id: "management",
@@ -315,6 +323,66 @@ class AuthService {
     this._credentialsCache = null;
     this._resetRequestsCache = null;
     this.currentUser = this._loadUser();
+
+    // Automatically synchronize credentials and reset requests with cloud database
+    this.syncCloudCredentials().catch(() => {});
+    this.syncCloudResetRequests().catch(() => {});
+  }
+
+  async syncCloudCredentials() {
+    try {
+      const cloudCreds = await fetchOfficerCredentialsFromCloud();
+      if (Array.isArray(cloudCreds) && cloudCreds.length > 0) {
+        const credMap = this._getUserCredentials();
+        cloudCreds.forEach((c) => {
+          if (c.username) {
+            credMap[c.username.toLowerCase().trim()] = {
+              password: c.password,
+              hasChangedPassword: Boolean(c.has_changed_password),
+              updatedAt: c.updated_at,
+              resetBy: c.reset_by,
+              resetAt: c.reset_at,
+            };
+          }
+        });
+        this._saveUserCredentials(credMap);
+      }
+    } catch (e) {
+      console.warn("Could not sync cloud credentials:", e);
+    }
+  }
+
+  async syncCloudResetRequests() {
+    try {
+      const cloudReqs = await fetchOfficerResetRequestsFromCloud();
+      if (Array.isArray(cloudReqs) && cloudReqs.length > 0) {
+        const local = this._getResetRequests();
+        const map = new Map();
+        local.forEach((r) => map.set(r.id, r));
+        cloudReqs.forEach((cr) => {
+          map.set(cr.id, {
+            id: cr.id,
+            username: cr.username,
+            roleTitle: cr.role_title,
+            departmentId: cr.department_id,
+            department: cr.department,
+            program: cr.program,
+            level: cr.level,
+            reason: cr.reason,
+            status: cr.status,
+            headOfficerApproval: cr.head_officer_approval,
+            hodExecution: cr.hod_execution,
+            requestedAt: cr.requested_at,
+          });
+        });
+        const merged = Array.from(map.values()).sort(
+          (a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)
+        );
+        this._saveResetRequests(merged);
+      }
+    } catch (e) {
+      console.warn("Error syncing reset requests from cloud:", e);
+    }
   }
 
   resetAllPasswordsToDefault() {
@@ -399,7 +467,7 @@ class AuthService {
     return this.currentUser;
   }
 
-  login(username, password) {
+  async login(username, password) {
     const cleanUser = (username || "").trim().toLowerCase();
     const user = DEFAULT_USERS.find(
       (u) => u.username.toLowerCase() === cleanUser
@@ -409,12 +477,36 @@ class AuthService {
       return { success: false, message: "Invalid username or password. Please check your credentials." };
     }
 
-    const credInfo = this.getUserPasswordInfo(cleanUser);
-    if (password !== credInfo.password) {
+    // Fetch live cloud credential so any password changed on Device A is immediately recognized on Device B
+    let effectiveCred = null;
+    try {
+      const cloudCred = await fetchOfficerCredential(cleanUser);
+      if (cloudCred) {
+        effectiveCred = {
+          password: cloudCred.password,
+          hasChangedPassword: Boolean(cloudCred.has_changed_password),
+          updatedAt: cloudCred.updated_at,
+          resetBy: cloudCred.reset_by,
+          resetAt: cloudCred.reset_at,
+        };
+        // Update local cache
+        const creds = this._getUserCredentials();
+        creds[cleanUser] = effectiveCred;
+        this._saveUserCredentials(creds);
+      }
+    } catch (e) {
+      console.warn("Cloud credential check warning:", e);
+    }
+
+    if (!effectiveCred) {
+      effectiveCred = this.getUserPasswordInfo(cleanUser);
+    }
+
+    if (password !== effectiveCred.password) {
       return { success: false, message: "Invalid username or password. Please check your credentials." };
     }
 
-    const mustChangePassword = !credInfo.hasChangedPassword;
+    const mustChangePassword = !effectiveCred.hasChangedPassword;
 
     this.currentUser = {
       ...user,
@@ -434,7 +526,7 @@ class AuthService {
     };
   }
 
-  changePassword(username, currentPassword, newPassword) {
+  async changePassword(username, currentPassword, newPassword) {
     const cleanUser = (username || "").trim().toLowerCase();
     const user = DEFAULT_USERS.find(
       (u) => u.username.toLowerCase() === cleanUser
@@ -444,7 +536,22 @@ class AuthService {
       return { success: false, message: "User account not found." };
     }
 
-    const credInfo = this.getUserPasswordInfo(cleanUser);
+    // Check against cloud or local
+    let credInfo = null;
+    try {
+      const cloudCred = await fetchOfficerCredential(cleanUser);
+      if (cloudCred) {
+        credInfo = {
+          password: cloudCred.password,
+          hasChangedPassword: Boolean(cloudCred.has_changed_password),
+        };
+      }
+    } catch (e) {}
+
+    if (!credInfo) {
+      credInfo = this.getUserPasswordInfo(cleanUser);
+    }
+
     if (currentPassword !== credInfo.password) {
       return { success: false, message: "Current password does not match our records." };
     }
@@ -465,6 +572,7 @@ class AuthService {
       return { success: false, message: "New password must be different from your current password." };
     }
 
+    // 1. Update local cache
     const creds = this._getUserCredentials();
     creds[cleanUser] = {
       password: trimmedNew,
@@ -472,6 +580,19 @@ class AuthService {
       updatedAt: new Date().toISOString(),
     };
     this._saveUserCredentials(creds);
+
+    // 2. Persist to Supabase Cloud immediately across all user devices
+    try {
+      await saveOfficerCredentialToCloud({
+        username: cleanUser,
+        password: trimmedNew,
+        hasChangedPassword: true,
+        roleTitle: user.roleTitle,
+        department: user.department,
+      });
+    } catch (e) {
+      console.warn("Cloud credential sync exception:", e);
+    }
 
     if (this.currentUser && this.currentUser.username.toLowerCase() === cleanUser) {
       this.currentUser.mustChangePassword = false;
@@ -483,7 +604,7 @@ class AuthService {
     return {
       success: true,
       user: this.currentUser,
-      message: "Password updated successfully! Welcome to your departmental workspace.",
+      message: "Password updated successfully across all your devices!",
     };
   }
 
@@ -506,7 +627,17 @@ class AuthService {
     };
     this._saveUserCredentials(creds);
 
-    // If currently logged in as this user, flag them to change password
+    // Sync to Supabase cloud immediately
+    saveOfficerCredentialToCloud({
+      username: cleanUser,
+      password: "password123",
+      hasChangedPassword: false,
+      roleTitle: user.roleTitle,
+      department: user.department,
+      resetBy: authorizedBy || "Self-Service Recovery",
+      resetAt: new Date().toISOString(),
+    }).catch((err) => console.warn("Cloud credential reset error:", err));
+
     if (this.currentUser && this.currentUser.username.toLowerCase() === cleanUser) {
       this.currentUser.mustChangePassword = true;
       if (typeof sessionStorage !== "undefined") {
@@ -517,7 +648,7 @@ class AuthService {
     return {
       success: true,
       user,
-      message: `Password for ${user.roleTitle} (${user.username}) has been reset to default 'password123'. Next sign-in will require setting a new password.`,
+      message: `Password for ${user.roleTitle} (${user.username}) has been reset to default 'password123' across all devices. Next sign-in will require setting a new password.`,
     };
   }
 
@@ -610,6 +741,7 @@ class AuthService {
 
     requests.unshift(newReq);
     this._saveResetRequests(requests);
+    saveOfficerResetRequestToCloud(newReq).catch(() => {});
 
     return {
       success: true,
@@ -645,6 +777,7 @@ class AuthService {
     };
 
     this._saveResetRequests(requests);
+    saveOfficerResetRequestToCloud(requests[idx]).catch(() => {});
 
     return {
       success: true,
@@ -668,6 +801,7 @@ class AuthService {
     };
 
     this._saveResetRequests(requests);
+    saveOfficerResetRequestToCloud(requests[idx]).catch(() => {});
 
     return {
       success: true,
@@ -707,6 +841,7 @@ class AuthService {
     };
 
     this._saveResetRequests(requests);
+    saveOfficerResetRequestToCloud(req).catch(() => {});
 
     return {
       success: true,

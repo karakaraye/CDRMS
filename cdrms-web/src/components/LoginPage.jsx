@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GraduationCap,
   Lock,
@@ -36,6 +36,12 @@ export default function LoginPage({ onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Pre-fetch latest cloud credentials so any password changes from other devices are ready immediately
+  useEffect(() => {
+    auth.syncCloudCredentials().catch(() => {});
+  }, []);
 
   // Map icons to departments
   const getDeptIcon = (deptId) => {
@@ -90,8 +96,8 @@ export default function LoginPage({ onLoginSuccess }) {
     setError("");
   };
 
-  // Standard form submission (requires manual credentials)
-  const handleFormSubmit = (e) => {
+  // Standard form submission (requires manual credentials & checks Supabase cloud live)
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError("");
     if (!username.trim()) {
@@ -102,11 +108,18 @@ export default function LoginPage({ onLoginSuccess }) {
       setError("Please enter your password to sign in.");
       return;
     }
-    const res = auth.login(username, password);
-    if (res.success) {
-      onLoginSuccess(res.user);
-    } else {
-      setError(res.message);
+    setIsLoggingIn(true);
+    try {
+      const res = await auth.login(username, password);
+      if (res.success) {
+        onLoginSuccess(res.user);
+      } else {
+        setError(res.message);
+      }
+    } catch (err) {
+      setError("Authentication network error. Please verify your connection.");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -274,8 +287,8 @@ export default function LoginPage({ onLoginSuccess }) {
                   {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
-              <button type="submit" className="btn btn-primary quick-submit-btn">
-                Sign In
+              <button type="submit" className="btn btn-primary quick-submit-btn" disabled={isLoggingIn}>
+                {isLoggingIn ? "Signing In..." : "Sign In"}
               </button>
             </form>
           </div>
@@ -529,8 +542,8 @@ export default function LoginPage({ onLoginSuccess }) {
                     </div>
                   </div>
 
-                  <button type="submit" className="btn btn-primary btn-block login-btn">
-                    <span>Authenticate & Access Records</span>
+                  <button type="submit" className="btn btn-primary btn-block login-btn" disabled={isLoggingIn}>
+                    <span>{isLoggingIn ? "Verifying Credentials Across Cloud..." : "Authenticate & Access Records"}</span>
                     <ChevronRight size={16} />
                   </button>
                 </form>
