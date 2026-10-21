@@ -9,9 +9,19 @@ import { createClient } from "@supabase/supabase-js";
 const STORAGE_KEY_URL = "cdrms_supabase_url";
 const STORAGE_KEY_KEY = "cdrms_supabase_anon_key";
 
+// Permanent cloud configuration defaults (Online-First mode)
+export const DEFAULT_SUPABASE_URL = "https://fqvmfkpknsaquayjlkwk.supabase.co";
+export const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdm1ma3BrbnNhcXVheWpsa3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5MDA2NjcsImV4cCI6MjEwNzQ3NjY2N30.KO5vX6MwBbR7S0jt3lWh67TLPqs6IK79pQvMpesAX3o";
+
 export function getStoredCloudCredentials() {
-  const url = localStorage.getItem(STORAGE_KEY_URL) || import.meta.env.VITE_SUPABASE_URL || "";
-  const key = localStorage.getItem(STORAGE_KEY_KEY) || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+  const url =
+    localStorage.getItem(STORAGE_KEY_URL) ||
+    import.meta.env.VITE_SUPABASE_URL ||
+    DEFAULT_SUPABASE_URL;
+  const key =
+    localStorage.getItem(STORAGE_KEY_KEY) ||
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    DEFAULT_SUPABASE_KEY;
   return { url, key };
 }
 

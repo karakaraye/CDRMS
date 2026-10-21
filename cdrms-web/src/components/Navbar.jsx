@@ -171,13 +171,13 @@ export default function Navbar({
         <div className="divider-vertical" />
 
         <button
-          className={`cloud-status-badge ${cloudConnected ? "connected" : "offline"}`}
+          className={`cloud-status-badge ${cloudConnected ? "connected" : "connecting"}`}
           onClick={onOpenCloudSettings}
-          title="Configure Cloud Database (PostgreSQL / Supabase)"
+          title="Live Supabase Cloud Database"
         >
           <div className="pulse-dot" />
           <Cloud size={15} />
-          <span>{cloudConnected ? "Cloud Online" : "Local / Offline"}</span>
+          <span>{cloudConnected ? "Cloud Online" : (cloudChecking ? "Connecting..." : "Reconnecting...")}</span>
           <SlidersHorizontal size={13} className="settings-icon" />
         </button>
 

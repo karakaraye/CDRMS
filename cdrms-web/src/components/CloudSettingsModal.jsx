@@ -176,7 +176,7 @@ CREATE POLICY "Allow public all access on results" ON public.results FOR ALL USI
             <Cloud size={20} className={cloudConnected ? "text-success" : ""} />
             <h3>Cloud Database Configuration</h3>
             <span className={`status-badge-inline ${cloudConnected ? "badge-online" : "badge-offline"}`}>
-              {cloudConnected ? "Online & Synchronized" : "Local / Offline Mode"}
+              {cloudConnected ? "Online & Synchronized" : "Connecting to Cloud..."}
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose}>
