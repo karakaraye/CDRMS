@@ -13,6 +13,7 @@ import LoginPage from "./components/LoginPage";
 import QueriesModal from "./components/QueriesModal";
 import ChangePasswordModal from "./components/ChangePasswordModal";
 import ExcelResultUploadModal from "./components/ExcelResultUploadModal";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import { db } from "./services/db";
 import { testCloudConnection, pullAllFromCloud, subscribeToRealtime } from "./services/supabase";
@@ -526,24 +527,26 @@ export default function App() {
       )}
 
       {isWorksheetOpen && (
-        <WorksheetModal
-          isOpen={isWorksheetOpen}
-          onClose={() => setIsWorksheetOpen(false)}
-          students={filteredStudents.length > 0 ? filteredStudents : students}
-          courses={courses}
-          results={results}
-          initialStudentId={worksheetStudentId}
-          onSaveResults={handleSaveResults}
-          currentUser={currentUser}
-          onOpenQueryModal={(resId) => {
-            setIsWorksheetOpen(false);
-            setIsQueriesModalOpen(true);
-          }}
-          onOpenExcelUpload={() => {
-            setIsWorksheetOpen(false);
-            setIsExcelUploadOpen(true);
-          }}
-        />
+        <ErrorBoundary fallbackTitle="Could not load Results Worksheet" onReset={() => setIsWorksheetOpen(false)}>
+          <WorksheetModal
+            isOpen={isWorksheetOpen}
+            onClose={() => setIsWorksheetOpen(false)}
+            students={filteredStudents.length > 0 ? filteredStudents : students}
+            courses={courses}
+            results={results}
+            initialStudentId={worksheetStudentId}
+            onSaveResults={handleSaveResults}
+            currentUser={currentUser}
+            onOpenQueryModal={(resId) => {
+              setIsWorksheetOpen(false);
+              setIsQueriesModalOpen(true);
+            }}
+            onOpenExcelUpload={() => {
+              setIsWorksheetOpen(false);
+              setIsExcelUploadOpen(true);
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {isTranscriptOpen && (

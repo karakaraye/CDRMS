@@ -21,16 +21,20 @@ import { db } from "../services/db";
 export default function WorksheetModal({
   isOpen,
   onClose,
-  students,
-  courses,
-  results,
+  students = [],
+  courses = [],
+  results = [],
   initialStudentId,
   onSaveResults,
   currentUser,
   onOpenQueryModal,
   onOpenExcelUpload,
 }) {
-  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState(() => {
+    if (initialStudentId) return String(initialStudentId);
+    if (students && students.length > 0) return String(students[0].id);
+    return "";
+  });
 
   // Determine initial level based on user role
   const initialLevel = useMemo(() => {
@@ -69,10 +73,10 @@ export default function WorksheetModal({
   useEffect(() => {
     if (initialStudentId) {
       setSelectedStudentId(String(initialStudentId));
-    } else if (students.length > 0 && !selectedStudentId) {
+    } else if (students && students.length > 0 && !selectedStudentId) {
       setSelectedStudentId(String(students[0].id));
     }
-  }, [initialStudentId, students]);
+  }, [initialStudentId, students, selectedStudentId]);
 
   const activeStudent = students.find((s) => String(s.id) === String(selectedStudentId));
   const studentProgram = activeStudent?.student_type || "Full-Time";
@@ -169,15 +173,23 @@ export default function WorksheetModal({
   useEffect(() => {
     if (!selectedStudentId) return;
 
-    const currentResults = results.filter(
-      (r) =>
-        (String(r.student_id) === String(selectedStudentId) ||
-          (student?.matric_no && String(r.student_id) === String(student.matric_no)) ||
-          (student?.matric_no && r.matric_no && String(r.matric_no) === String(student.matric_no))) &&
-        (r.session === session || (!r.session && String(r.level) === String(level))) &&
-        r.semester === semester &&
-        (String(r.level) === String(level) || (!r.level && !isExtraYear))
-    );
+    const activeMatric = activeStudent?.matric_no ? String(activeStudent.matric_no).trim().toLowerCase() : null;
+    const activeId = selectedStudentId ? String(selectedStudentId).trim().toLowerCase() : null;
+
+    const currentResults = (results || []).filter((r) => {
+      const rStudentId = r.student_id ? String(r.student_id).trim().toLowerCase() : "";
+      const rMatric = r.matric_no ? String(r.matric_no).trim().toLowerCase() : "";
+
+      const matchesStudent =
+        (activeId && rStudentId === activeId) ||
+        (activeMatric && (rMatric === activeMatric || rStudentId === activeMatric));
+
+      const matchesSession = r.session === session || (!r.session && String(r.level) === String(level));
+      const matchesSemester = r.semester === semester;
+      const matchesLevel = String(r.level) === String(level) || (!r.level && !isExtraYear);
+
+      return matchesStudent && matchesSession && matchesSemester && matchesLevel;
+    });
 
     // 1. Populate standard curriculum courses
     const stdMap = {};
@@ -259,7 +271,7 @@ export default function WorksheetModal({
     setExtraEntries(extras);
     setSaveSuccess(false);
     setErrorMessage("");
-  }, [selectedStudentId, level, session, semester, standardCurriculumCourses, results, isExtraYear]);
+  }, [selectedStudentId, activeStudent, level, session, semester, standardCurriculumCourses, results, isExtraYear]);
 
   if (!isOpen) return null;
 
@@ -306,7 +318,15 @@ export default function WorksheetModal({
     if (!canEditEntry(standardEntries[courseId])) return;
     if (field === "is_waived" && checked) {
       const course = courses.find((c) => String(c.id) === String(courseId));
-      const studentResults = results.filter((r) => String(r.student_id) === String(selectedStudentId));
+      const activeMatric = activeStudent?.matric_no ? String(activeStudent.matric_no).trim().toLowerCase() : null;
+      const studentResults = (results || []).filter((r) => {
+        const rStudentId = r.student_id ? String(r.student_id).trim().toLowerCase() : "";
+        const rMatric = r.matric_no ? String(r.matric_no).trim().toLowerCase() : "";
+        return (
+          (selectedStudentId && rStudentId === String(selectedStudentId).toLowerCase()) ||
+          (activeMatric && (rMatric === activeMatric || rStudentId === activeMatric))
+        );
+      });
       const entry = standardEntries[courseId];
       const check = canWaiveCourse(course, studentResults, entry?.id);
       if (!check.allowed) {
@@ -382,7 +402,15 @@ export default function WorksheetModal({
         return;
       }
       const course = courses.find((c) => String(c.id) === String(targetSlot.courseId));
-      const studentResults = results.filter((r) => String(r.student_id) === String(selectedStudentId));
+      const activeMatric = activeStudent?.matric_no ? String(activeStudent.matric_no).trim().toLowerCase() : null;
+      const studentResults = (results || []).filter((r) => {
+        const rStudentId = r.student_id ? String(r.student_id).trim().toLowerCase() : "";
+        const rMatric = r.matric_no ? String(r.matric_no).trim().toLowerCase() : "";
+        return (
+          (selectedStudentId && rStudentId === String(selectedStudentId).toLowerCase()) ||
+          (activeMatric && (rMatric === activeMatric || rStudentId === activeMatric))
+        );
+      });
       const check = canWaiveCourse(course, studentResults, targetSlot.id);
       if (!check.allowed) {
         setErrorMessage(check.reason);
