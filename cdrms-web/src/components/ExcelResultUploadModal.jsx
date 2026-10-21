@@ -333,7 +333,11 @@ export default function ExcelResultUploadModal({
     try {
       const recordsToSave = rowsToImport.map((r) => ({
         student_id: r.matchedStudent.id,
+        student_name: r.matchedStudent.fullname || null,
+        matric_no: r.matchedStudent.matric_no || null,
         course_id: selectedCourse.id,
+        course_code: selectedCourse.course_code,
+        credit_units: Number(selectedCourse.credit_units || 2),
         score: r.score,
         grade: r.grade,
         grade_point: r.gradePoint,

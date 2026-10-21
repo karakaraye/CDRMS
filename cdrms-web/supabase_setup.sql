@@ -1,12 +1,12 @@
 -- =========================================================================
 -- CDRMS Cloud Database Schema (Supabase / PostgreSQL)
--- Run this script in your Supabase project's SQL Editor to create all tables
+-- Run this script in your Supabase project's SQL Editor to create or update all tables
 -- =========================================================================
 
 -- 1. Create students table
 CREATE TABLE IF NOT EXISTS public.students (
     id BIGSERIAL PRIMARY KEY,
-    matric_no TEXT NOT NULL UNIQUE,
+    matric_no TEXT, -- Optional: students without matric numbers can register by name
     surname TEXT,
     firstname TEXT,
     other_name TEXT,
@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS public.students (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Partial unique index: ensure matric numbers are unique only when assigned
+CREATE UNIQUE INDEX IF NOT EXISTS uq_students_matric_no 
+ON public.students (matric_no) 
+WHERE (matric_no IS NOT NULL AND matric_no <> '');
+
 -- 2. Create courses table
 CREATE TABLE IF NOT EXISTS public.courses (
     id BIGSERIAL PRIMARY KEY,
@@ -49,7 +54,11 @@ CREATE TABLE IF NOT EXISTS public.courses (
 CREATE TABLE IF NOT EXISTS public.results (
     id BIGSERIAL PRIMARY KEY,
     student_id BIGINT,
+    student_name TEXT,
+    matric_no TEXT,
     course_id BIGINT,
+    course_code TEXT,
+    credit_units INTEGER DEFAULT 3,
     score NUMERIC DEFAULT 0,
     grade TEXT DEFAULT 'F',
     grade_point NUMERIC DEFAULT 0,
@@ -85,6 +94,9 @@ CREATE TABLE IF NOT EXISTS public.result_queries (
     resolved_at TIMESTAMPTZ,
     session TEXT,
     semester TEXT,
+    attachment_data TEXT,
+    attachment_name TEXT,
+    attachment_type TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -100,12 +112,14 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 
 -- 6. Indexes
 CREATE INDEX IF NOT EXISTS idx_students_matric ON public.students(matric_no);
+CREATE INDEX IF NOT EXISTS idx_students_fullname ON public.students(fullname);
 CREATE INDEX IF NOT EXISTS idx_students_batch ON public.students(batch);
 CREATE INDEX IF NOT EXISTS idx_students_program ON public.students(student_type);
 CREATE INDEX IF NOT EXISTS idx_courses_code ON public.courses(course_code);
 CREATE INDEX IF NOT EXISTS idx_courses_level_sem ON public.courses(level, semester, program);
 CREATE INDEX IF NOT EXISTS idx_results_student ON public.results(student_id);
 CREATE INDEX IF NOT EXISTS idx_results_course ON public.results(course_id);
+CREATE INDEX IF NOT EXISTS idx_results_matric ON public.results(matric_no);
 
 -- 7. Enable Row Level Security (RLS)
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
@@ -127,3 +141,18 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.courses;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.results;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.result_queries;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
+
+-- =========================================================================
+-- Idempotent Schema Migrations (Safe to run repeatedly on existing tables)
+-- =========================================================================
+ALTER TABLE public.students ALTER COLUMN matric_no DROP NOT NULL;
+ALTER TABLE public.students DROP CONSTRAINT IF EXISTS students_matric_no_key;
+
+ALTER TABLE public.results ADD COLUMN IF NOT EXISTS student_name TEXT;
+ALTER TABLE public.results ADD COLUMN IF NOT EXISTS matric_no TEXT;
+ALTER TABLE public.results ADD COLUMN IF NOT EXISTS course_code TEXT;
+ALTER TABLE public.results ADD COLUMN IF NOT EXISTS credit_units INTEGER DEFAULT 3;
+
+ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_data TEXT;
+ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+ALTER TABLE public.result_queries ADD COLUMN IF NOT EXISTS attachment_type TEXT;

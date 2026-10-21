@@ -223,10 +223,10 @@ export async function saveStudentToCloud(student) {
   if (!client) return;
 
   const payload = {
-    matric_no: student.matric_no,
-    surname: student.surname,
-    firstname: student.firstname,
-    other_name: student.other_name,
+    matric_no: student.matric_no?.trim() || null,
+    surname: student.surname || "",
+    firstname: student.firstname || "",
+    other_name: student.other_name || null,
     fullname: student.fullname || `${student.surname || ""} ${student.firstname || ""} ${student.other_name || ""}`.trim(),
     batch: student.batch || "U2022",
     student_type: student.student_type || "Full-Time",
@@ -240,22 +240,67 @@ export async function saveStudentToCloud(student) {
     state_of_origin: student.state_of_origin || null,
     lga: student.lga || null,
     faculty: student.faculty || "Management Sciences",
-    department: student.department || "Management",
+    department: student.department || "Department of Management",
     entry_year: student.entry_year || null
   };
 
-  const { error } = await client.from("students").upsert(payload, { onConflict: "matric_no" });
-  if (error) console.warn("Supabase student sync error:", error.message);
+  try {
+    // 1. If student has an existing serial id from cloud database, update by id
+    if (student.id && !isNaN(Number(student.id)) && Number(student.id) < 10000000000) {
+      const { error } = await client.from("students").upsert({ id: Number(student.id), ...payload }, { onConflict: "id" });
+      if (error) console.warn("Supabase student upsert on id error:", error.message);
+      return;
+    }
+
+    // 2. If student has a valid matric_no, check if row exists by matric_no
+    if (payload.matric_no) {
+      const { data: existing } = await client.from("students").select("id").eq("matric_no", payload.matric_no).maybeSingle();
+      if (existing?.id) {
+        const { error } = await client.from("students").update(payload).eq("id", existing.id);
+        if (error) console.warn("Supabase student update error:", error.message);
+        return;
+      }
+    }
+
+    // 3. Check if a student with the same fullname and department exists
+    const { data: nameMatch } = await client
+      .from("students")
+      .select("id")
+      .eq("department", payload.department)
+      .ilike("fullname", payload.fullname)
+      .maybeSingle();
+
+    if (nameMatch?.id) {
+      const { error } = await client.from("students").update(payload).eq("id", nameMatch.id);
+      if (error) console.warn("Supabase student update by name error:", error.message);
+      return;
+    }
+
+    // 4. Clean insert for new student
+    const { error: insertErr } = await client.from("students").insert(payload);
+    if (insertErr) console.warn("Supabase student insert error:", insertErr.message);
+  } catch (err) {
+    console.warn("Supabase student sync exception:", err);
+  }
 }
 
 /**
  * Delete student from Supabase
  */
-export async function deleteStudentFromCloud(matricNo) {
+export async function deleteStudentFromCloud(studentId, matricNo) {
   const client = getSupabaseClient();
-  if (!client || !matricNo) return;
-  const { error } = await client.from("students").delete().eq("matric_no", matricNo);
-  if (error) console.warn("Supabase student delete error:", error.message);
+  if (!client) return;
+  try {
+    if (studentId && !isNaN(Number(studentId)) && Number(studentId) < 10000000000) {
+      const { error } = await client.from("students").delete().eq("id", Number(studentId));
+      if (error) console.warn("Supabase student delete by id error:", error.message);
+    } else if (matricNo) {
+      const { error } = await client.from("students").delete().eq("matric_no", matricNo);
+      if (error) console.warn("Supabase student delete by matric error:", error.message);
+    }
+  } catch (err) {
+    console.warn("Supabase student delete exception:", err);
+  }
 }
 
 /**
@@ -303,6 +348,7 @@ export async function saveResultToCloud(record) {
 
   const payload = {
     student_id: String(record.student_id),
+    student_name: record.student_name || null,
     matric_no: record.matric_no || null,
     course_id: String(record.course_id),
     course_code: record.course_code || null,
@@ -334,6 +380,7 @@ export async function saveBulkResultsToCloud(resultsList) {
 
   const payloads = resultsList.map(r => ({
     student_id: String(r.student_id),
+    student_name: r.student_name || null,
     matric_no: r.matric_no || null,
     course_id: String(r.course_id),
     course_code: r.course_code || null,
@@ -387,6 +434,9 @@ export async function saveQueryToCloud(query) {
     resolved_at: query.resolved_at || null,
     session: query.session || "",
     semester: query.semester || "",
+    attachment_data: query.attachment_data || null,
+    attachment_name: query.attachment_name || null,
+    attachment_type: query.attachment_type || null,
     updated_at: new Date().toISOString()
   };
 

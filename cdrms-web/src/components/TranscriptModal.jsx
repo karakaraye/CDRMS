@@ -14,12 +14,26 @@ export default function TranscriptModal({
 
   if (!isOpen || !student) return null;
 
-  const studentResults = results.filter(
-    (r) =>
-      String(r.student_id) === String(student.id) ||
-      (student.matric_no && String(r.student_id) === String(student.matric_no)) ||
-      (student.matric_no && r.matric_no && String(r.matric_no) === String(student.matric_no))
-  );
+  const studentResults = results.filter((r) => {
+    if (!student) return false;
+    const matchId = String(r.student_id) === String(student.id);
+    const matchMatric = Boolean(
+      student.matric_no && (
+        (r.matric_no && String(r.matric_no).trim().toLowerCase() === String(student.matric_no).trim().toLowerCase()) ||
+        String(r.student_id).trim().toLowerCase() === String(student.matric_no).trim().toLowerCase()
+      )
+    );
+    const matchName = Boolean(
+      student.fullname && r.student_name &&
+      r.student_name.trim().toLowerCase() === student.fullname.trim().toLowerCase()
+    );
+    const matchNameParts = Boolean(
+      student.surname && student.firstname && r.student_name &&
+      r.student_name.toLowerCase().includes(student.surname.toLowerCase()) &&
+      r.student_name.toLowerCase().includes(student.firstname.toLowerCase())
+    );
+    return matchId || matchMatric || matchName || matchNameParts;
+  });
 
   // Map courses with multi-key indexing
   const courseMap = new Map();
@@ -126,11 +140,11 @@ export default function TranscriptModal({
         <div className="modal-header no-print">
           <div className="modal-title-group">
             <GraduationCap size={18} />
-            <h3>Academic Transcript — {student.fullname} ({student.matric_no})</h3>
+            <h3>Student Academic Spreadsheet — {student.fullname} {student.matric_no ? `(${student.matric_no})` : ""}</h3>
           </div>
           <div className="transcript-header-actions">
             <button className="btn btn-primary btn-sm" onClick={handlePrint}>
-              <Printer size={15} /> Print / Save as PDF
+              <Printer size={15} /> Print / Save Spreadsheet as PDF
             </button>
             <button className="modal-close-btn" onClick={onClose}>
               <X size={18} />
@@ -138,8 +152,11 @@ export default function TranscriptModal({
           </div>
         </div>
 
-        {/* PRINTABLE TRANSCRIPT DOCUMENT */}
-        <div className="transcript-document printable-content" ref={printRef}>
+        {/* PRINTABLE SPREADSHEET DOCUMENT */}
+        <div className="transcript-document printable-content" ref={printRef} style={{ position: "relative", overflow: "hidden" }}>
+          {/* UNOFFICIAL WATERMARK */}
+          <div className="spreadsheet-watermark">UNOFFICIAL</div>
+
           {/* UNIVERSITY HEADER */}
           <div className="transcript-official-header">
             <img
@@ -153,7 +170,7 @@ export default function TranscriptModal({
               <h3>FACULTY OF MANAGEMENT SCIENCES</h3>
               <h4>{(student.department || "Department of Management").toUpperCase()}</h4>
               <div className="transcript-subheading">
-                OFFICIAL STUDENT SPREADSHEET & ACADEMIC TRANSCRIPT
+                STUDENT ACADEMIC SPREADSHEET
               </div>
             </div>
           </div>
@@ -167,7 +184,7 @@ export default function TranscriptModal({
               </div>
               <div className="biodata-row">
                 <span className="bio-label">MATRIC NO:</span>
-                <span className="bio-value"><strong>{student.matric_no}</strong></span>
+                <span className="bio-value"><strong>{student.matric_no || "Unassigned"}</strong></span>
               </div>
               <div className="biodata-row">
                 <span className="bio-label">SEX / GENDER:</span>
@@ -343,7 +360,7 @@ export default function TranscriptModal({
           </div>
 
           {/* SIGNATURE BLOCK */}
-          <div className="transcript-signatures-section">
+          <div className="transcript-signatures-section" style={{ gridTemplateColumns: "1fr 1fr", maxWidth: "600px", margin: "25px auto 0 auto" }}>
             <div className="signature-box">
               <div className="signature-line" />
               <div className="signature-title">DR. / PROF. [NAME]</div>
@@ -352,12 +369,7 @@ export default function TranscriptModal({
             <div className="signature-box">
               <div className="signature-line" />
               <div className="signature-title">DEPARTMENTAL OFFICER</div>
-              <div className="signature-role">Faculty Examination Officer</div>
-            </div>
-            <div className="signature-box">
-              <div className="signature-line" />
-              <div className="signature-title">DEAN OF FACULTY</div>
-              <div className="signature-role">Faculty of Management Sciences</div>
+              <div className="signature-role">Department Examination Officer</div>
             </div>
           </div>
         </div>

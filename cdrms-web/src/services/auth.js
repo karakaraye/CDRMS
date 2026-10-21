@@ -278,17 +278,6 @@ export const DEFAULT_USERS = [
     program: "All",
     description: "Universal administrative access across all 5 departments and all student records.",
   },
-  {
-    username: "dean",
-    password: "password123",
-    role: ROLES.HOD,
-    roleTitle: "Dean of Faculty (Management Sciences)",
-    level: "All",
-    department: "All Departments",
-    departmentId: "all",
-    program: "All",
-    description: "Executive faculty-wide oversight across all departmental programs and batches.",
-  },
 ];
  
 export function getUsersForTrack(deptId, program) {

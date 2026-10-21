@@ -164,10 +164,10 @@ export default function Navbar({
         <button
           className="btn btn-secondary"
           onClick={onOpenTranscript}
-          title="Generate Academic Transcript / Spreadsheet"
+          title="View Student Academic Spreadsheet"
         >
           <FileText size={16} />
-          <span>Transcript</span>
+          <span>Spreadsheet</span>
         </button>
 
         <button
@@ -397,7 +397,7 @@ export default function Navbar({
                 }}
               >
                 <FileText size={17} />
-                <span>Academic Transcript</span>
+                <span>Student Academic Spreadsheet</span>
               </button>
 
               <button

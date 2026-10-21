@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   User,
   Phone,
@@ -12,6 +12,7 @@ import {
   Filter,
   ChevronUp,
   ChevronDown,
+  ArrowUpDown,
   Building,
 } from "lucide-react";
 
@@ -36,6 +37,37 @@ export default function StudentList({
   const showFullTime = !currentUser || currentUser.program === "All" || currentUser.program === "Full-Time";
   const showPartTime = !currentUser || currentUser.program === "All" || currentUser.program === "Part-Time";
   const showAllRecords = !currentUser || currentUser.program === "All";
+
+  // Sorting state (default: alphabetical by Name, as Name is primary)
+  const [sortField, setSortField] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
+
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => {
+      if (sortField === "matric") {
+        const aMat = (a.matric_no || "").trim();
+        const bMat = (b.matric_no || "").trim();
+        if (!aMat && bMat) return 1;
+        if (aMat && !bMat) return -1;
+        const cmp = aMat.localeCompare(bMat, undefined, { numeric: true });
+        return sortOrder === "asc" ? cmp : -cmp;
+      } else {
+        const aName = (a.fullname || `${a.surname || ""} ${a.firstname || ""}`).trim();
+        const bName = (b.fullname || `${b.surname || ""} ${b.firstname || ""}`).trim();
+        const cmp = aName.localeCompare(bName);
+        return sortOrder === "asc" ? cmp : -cmp;
+      }
+    });
+  }, [students, sortField, sortOrder]);
 
   return (
     <div className="student-list-container">
@@ -117,8 +149,34 @@ export default function StudentList({
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: "130px" }}>Matric No</th>
-              <th>Full Name</th>
+              <th
+                style={{ width: "140px", cursor: "pointer", userSelect: "none" }}
+                onClick={() => toggleSort("matric")}
+                title="Click to sort by Matriculation Number"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>Matric No</span>
+                  {sortField === "matric" ? (
+                    sortOrder === "asc" ? <ChevronUp size={14} color="#0284c7" /> : <ChevronDown size={14} color="#0284c7" />
+                  ) : (
+                    <ArrowUpDown size={12} color="#94a3b8" />
+                  )}
+                </div>
+              </th>
+              <th
+                style={{ cursor: "pointer", userSelect: "none" }}
+                onClick={() => toggleSort("name")}
+                title="Click to sort alphabetically by Full Name (Primary ID)"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>Full Name (Primary ID)</span>
+                  {sortField === "name" ? (
+                    sortOrder === "asc" ? <ChevronUp size={14} color="#0284c7" /> : <ChevronDown size={14} color="#0284c7" />
+                  ) : (
+                    <ArrowUpDown size={12} color="#94a3b8" />
+                  )}
+                </div>
+              </th>
               <th style={{ width: "90px" }}>Batch</th>
               <th style={{ width: "110px" }}>Program</th>
               <th style={{ width: "70px" }}>Sex</th>
@@ -128,7 +186,7 @@ export default function StudentList({
             </tr>
           </thead>
           <tbody>
-            {students.length === 0 ? (
+            {sortedStudents.length === 0 ? (
               <tr>
                 <td colSpan={8} className="empty-table-cell">
                   <div className="empty-state">
@@ -159,7 +217,7 @@ export default function StudentList({
                 </td>
               </tr>
             ) : (
-              students.map((student) => {
+              sortedStudents.map((student) => {
                 const isSelected = String(student.id) === String(selectedStudentId);
                 return (
                   <tr
@@ -169,7 +227,13 @@ export default function StudentList({
                     onDoubleClick={() => onOpenTranscript(student.id)}
                   >
                     <td className="matric-cell">
-                      <strong>{student.matric_no}</strong>
+                      {student.matric_no ? (
+                        <strong>{student.matric_no}</strong>
+                      ) : (
+                        <span style={{ fontSize: "11px", color: "#64748b", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", fontStyle: "italic" }}>
+                          Unassigned
+                        </span>
+                      )}
                     </td>
                     <td className="name-cell">
                       <div className="student-name-wrapper">
@@ -215,7 +279,7 @@ export default function StudentList({
                         </button>
                         <button
                           className="btn-action btn-action-transcript"
-                          title="Generate Transcript"
+                          title="View Student Academic Spreadsheet"
                           onClick={(e) => {
                             e.stopPropagation();
                             onOpenTranscript(student.id);
@@ -238,7 +302,8 @@ export default function StudentList({
                           title="Delete Student"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`Are you sure you want to delete ${student.fullname} (${student.matric_no})?`)) {
+                            const matricTag = student.matric_no ? ` (${student.matric_no})` : "";
+                            if (window.confirm(`Are you sure you want to delete ${student.fullname}${matricTag}?`)) {
                               onDeleteStudent(student.id);
                             }
                           }}

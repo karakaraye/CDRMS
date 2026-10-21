@@ -37,12 +37,26 @@ export default function StudentOverview({
     );
   }
 
-  const studentResults = results.filter(
-    (r) =>
-      String(r.student_id) === String(student.id) ||
-      (student.matric_no && String(r.student_id) === String(student.matric_no)) ||
-      (student.matric_no && r.matric_no && String(r.matric_no) === String(student.matric_no))
-  );
+  const studentResults = results.filter((r) => {
+    if (!student) return false;
+    const matchId = String(r.student_id) === String(student.id);
+    const matchMatric = Boolean(
+      student.matric_no && (
+        (r.matric_no && String(r.matric_no).trim().toLowerCase() === String(student.matric_no).trim().toLowerCase()) ||
+        String(r.student_id).trim().toLowerCase() === String(student.matric_no).trim().toLowerCase()
+      )
+    );
+    const matchName = Boolean(
+      student.fullname && r.student_name &&
+      r.student_name.trim().toLowerCase() === student.fullname.trim().toLowerCase()
+    );
+    const matchNameParts = Boolean(
+      student.surname && student.firstname && r.student_name &&
+      r.student_name.toLowerCase().includes(student.surname.toLowerCase()) &&
+      r.student_name.toLowerCase().includes(student.firstname.toLowerCase())
+    );
+    return matchId || matchMatric || matchName || matchNameParts;
+  });
   const metrics = calculateStudentMetrics(studentResults, courses);
 
   const degreeBadgeClass =
@@ -71,7 +85,9 @@ export default function StudentOverview({
           </div>
           <div className="student-card-info">
             <h4 className="student-card-name">{student.fullname}</h4>
-            <div className="student-card-matric">{student.matric_no}</div>
+            <div className="student-card-matric">
+              {student.matric_no ? student.matric_no : <span style={{ fontStyle: "italic", color: "#94a3b8" }}>No Matric Assigned</span>}
+            </div>
             <div className="student-card-meta">
               <span style={{ color: "#0284c7", fontWeight: "700" }}>{student.department ? student.department.replace("Department of ", "") : "Management"}</span> • <span>{student.batch || "U2022"}</span> • <span>{student.student_type || "Full-Time"}</span>
             </div>
@@ -198,7 +214,7 @@ export default function StudentOverview({
             className="btn btn-primary btn-block"
             onClick={() => onOpenTranscript(student.id)}
           >
-            <FileText size={15} /> Official Transcript
+            <FileSpreadsheet size={15} /> Student Academic Spreadsheet
           </button>
           <div className="action-row-split">
             <button

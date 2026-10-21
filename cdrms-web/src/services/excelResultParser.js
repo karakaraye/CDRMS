@@ -158,13 +158,14 @@ export function findStudentMatch(matricInput, nameInput, students = []) {
     }
 
     if (bestStudent && bestScore >= 0.7) {
+      const matTag = bestStudent.matric_no ? ` (${bestStudent.matric_no})` : "";
       return {
         student: bestStudent,
         matchType: matricIsName ? "NAME_IN_MATRIC_CELL" : "NAME_MATCH",
         confidence: Number(bestScore.toFixed(2)),
         note: matricIsName
-          ? `Name found in Matric column: matched to ${bestStudent.fullname} (${bestStudent.matric_no})`
-          : `Matched by Student Name: ${bestStudent.fullname} (${bestStudent.matric_no})`,
+          ? `Name found in Matric column: matched to ${bestStudent.fullname}${matTag}`
+          : `Matched by Student Name: ${bestStudent.fullname}${matTag}`,
       };
     }
   }

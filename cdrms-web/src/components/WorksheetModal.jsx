@@ -13,7 +13,7 @@ import {
   HelpCircle,
   ShieldAlert
 } from "lucide-react";
-import { scoreToGrade, canWaiveCourse } from "../services/grading";
+import { scoreToGrade, canWaiveCourse, calculateStudentMetrics } from "../services/grading";
 import { ROLES } from "../services/auth";
 import { getSessionForLevel, getStudentSessionOptions } from "../services/session";
 import { db } from "../services/db";
@@ -454,6 +454,89 @@ export default function WorksheetModal({
 
   const semesterGPA = totalCU > 0 ? (totalQP / totalCU).toFixed(2) : "0.00";
 
+  // Live Cumulative CGPA calculation across all student results
+  const cumulativeMetrics = useMemo(() => {
+    if (!activeStudent) return { cgpa: "0.00", tcu: 0, tqp: 0, degreeClass: "N/A" };
+
+    // 1. Get other historical results for this student, excluding current session & semester & level
+    const otherResults = results.filter((r) => {
+      const isThisStudent =
+        String(r.student_id) === String(selectedStudentId) ||
+        (activeStudent.matric_no && String(r.matric_no) === String(activeStudent.matric_no)) ||
+        (activeStudent.matric_no && String(r.student_id) === String(activeStudent.matric_no)) ||
+        (activeStudent.fullname && r.student_name && r.student_name.trim().toLowerCase() === activeStudent.fullname.trim().toLowerCase());
+
+      if (!isThisStudent) return false;
+
+      const isCurrentSessionSem =
+        (r.session === session || (!r.session && String(r.level) === String(level))) &&
+        r.semester === semester &&
+        String(r.level) === String(level);
+
+      return !isCurrentSessionSem;
+    });
+
+    // 2. Synthesize current session results from standard and extra entries
+    const currentSessionResults = [];
+
+    standardCurriculumCourses.forEach((c) => {
+      const entry = standardEntries[c.id];
+      if (entry && (entry.score !== "" || entry.is_waived)) {
+        const scoreNum = parseFloat(entry.score) || 0;
+        const isCarryover = Boolean(entry.is_carryover);
+        const isWaived = Boolean(entry.is_waived);
+        const { letter, point } = scoreToGrade(scoreNum, isCarryover);
+
+        currentSessionResults.push({
+          student_id: selectedStudentId,
+          matric_no: activeStudent?.matric_no || null,
+          student_name: activeStudent?.fullname || null,
+          course_id: c.id,
+          course_code: c.course_code,
+          credit_units: Number(c.credit_units || 2),
+          score: scoreNum,
+          grade: isWaived ? (entry.waiver_grade || "W") : letter,
+          grade_point: isWaived ? 1.0 : point,
+          session,
+          semester,
+          level,
+          is_carryover: isCarryover ? 1 : 0,
+          is_waived: isWaived ? 1 : 0,
+        });
+      }
+    });
+
+    extraEntries.forEach((item) => {
+      if (item.courseId && (item.score !== "" || item.is_waived)) {
+        const course = courses.find((c) => String(c.id) === String(item.courseId));
+        const scoreNum = parseFloat(item.score) || 0;
+        const isCarryover = Boolean(item.is_carryover);
+        const isWaived = Boolean(item.is_waived);
+        const { letter, point } = scoreToGrade(scoreNum, isCarryover);
+
+        currentSessionResults.push({
+          student_id: selectedStudentId,
+          matric_no: activeStudent?.matric_no || null,
+          student_name: activeStudent?.fullname || null,
+          course_id: item.courseId,
+          course_code: course?.course_code,
+          credit_units: Number(course?.credit_units || 2),
+          score: scoreNum,
+          grade: isWaived ? (item.waiver_grade || "W") : letter,
+          grade_point: isWaived ? 1.0 : point,
+          session,
+          semester,
+          level,
+          is_carryover: isCarryover ? 1 : 0,
+          is_waived: isWaived ? 1 : 0,
+        });
+      }
+    });
+
+    const merged = [...otherResults, ...currentSessionResults];
+    return calculateStudentMetrics(merged, courses);
+  }, [activeStudent, results, selectedStudentId, session, semester, level, standardCurriculumCourses, standardEntries, extraEntries, courses]);
+
   // Save All Results
   const handleSaveAll = async (e) => {
     e.preventDefault();
@@ -488,6 +571,7 @@ export default function WorksheetModal({
         resultsToSave.push({
           ...(entry.id ? { id: entry.id } : {}),
           student_id: selectedStudentId,
+          student_name: activeStudent?.fullname || null,
           matric_no: activeStudent?.matric_no || null,
           course_id: c.id,
           course_code: c.course_code,
@@ -519,6 +603,7 @@ export default function WorksheetModal({
         resultsToSave.push({
           ...(item.id ? { id: item.id } : {}),
           student_id: selectedStudentId,
+          student_name: activeStudent?.fullname || null,
           matric_no: activeStudent?.matric_no || null,
           course_id: item.courseId,
           course_code: course?.course_code || null,
@@ -577,7 +662,7 @@ export default function WorksheetModal({
             >
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.matric_no} — {s.fullname} ({s.student_type})
+                  {s.fullname} {s.matric_no ? `(${s.matric_no})` : "(No Matric)"} — {s.student_type}
                 </option>
               ))}
             </select>
@@ -1010,19 +1095,24 @@ export default function WorksheetModal({
           )}
         </div>
 
-        {/* LIVE SEMESTER SUMMARY FOOTER */}
+        {/* LIVE SEMESTER & CUMULATIVE SUMMARY FOOTER */}
         <div className="worksheet-summary-footer">
           <div className="summary-stat-box">
             <span className="summary-stat-label">Semester CU:</span>
             <span className="summary-stat-val">{totalCU}</span>
           </div>
           <div className="summary-stat-box">
-            <span className="summary-stat-label">Quality Points (TQP):</span>
+            <span className="summary-stat-label">Semester TQP:</span>
             <span className="summary-stat-val">{totalQP.toFixed(1)}</span>
           </div>
           <div className="summary-stat-box highlight-stat">
             <span className="summary-stat-label">Semester GPA:</span>
             <span className="summary-stat-val">{semesterGPA}</span>
+          </div>
+          <div className="summary-stat-box highlight-stat" style={{ background: "rgba(16, 185, 129, 0.12)", border: "1px solid #10b981", borderRadius: "6px" }}>
+            <span className="summary-stat-label" style={{ color: "#065f46", fontWeight: "700" }}>Live Cumulative CGPA:</span>
+            <span className="summary-stat-val" style={{ color: "#047857", fontSize: "17px", fontWeight: "800" }}>{cumulativeMetrics.cgpa}</span>
+            <span style={{ fontSize: "10px", color: "#047857", fontWeight: "600", marginLeft: "4px" }}>({cumulativeMetrics.degreeClass})</span>
           </div>
 
           <div className="summary-right-actions">

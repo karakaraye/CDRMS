@@ -20,6 +20,9 @@ import {
   KeyRound,
   RotateCcw,
   ShieldCheck,
+  Paperclip,
+  Download,
+  Eye,
 } from "lucide-react";
 import { ROLES, auth } from "../services/auth";
 import { db } from "../services/db";
@@ -225,6 +228,9 @@ export default function QueriesModal({
     current_score: "",
     proposed_score: "",
     reason: "",
+    attachment_data: "",
+    attachment_name: "",
+    attachment_type: "",
   });
 
   const pendingQueries = queries.filter((q) => q.status === "PENDING");
@@ -309,12 +315,44 @@ export default function QueriesModal({
     setCourseSearchQuery("");
   };
 
+  const handleAttachmentChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File is too large. Please select an attachment smaller than 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      setQueryForm((prev) => ({
+        ...prev,
+        attachment_data: uploadEvent.target.result,
+        attachment_name: file.name,
+        attachment_type: file.type || "application/octet-stream",
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAttachment = () => {
+    setQueryForm((prev) => ({
+      ...prev,
+      attachment_data: "",
+      attachment_name: "",
+      attachment_type: "",
+    }));
+  };
+
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     if (!queryForm.student_id || !queryForm.course_id || !queryForm.proposed_score || !queryForm.reason) {
       alert("Please select student, select contested course, and enter proposed mark & justification.");
       return;
     }
+
+    const contestedResult = results.find((r) => String(r.id) === String(queryForm.result_id));
 
     onCreateQuery({
       result_id: queryForm.result_id,
@@ -328,6 +366,11 @@ export default function QueriesModal({
       proposed_score: Number(queryForm.proposed_score),
       reason: queryForm.reason,
       requested_by: currentUser.roleTitle, // Official role only, no personal name
+      session: contestedResult?.session || "",
+      semester: contestedResult?.semester || "",
+      attachment_data: queryForm.attachment_data || null,
+      attachment_name: queryForm.attachment_name || null,
+      attachment_type: queryForm.attachment_type || null,
     });
 
     setQueryForm({
@@ -337,6 +380,9 @@ export default function QueriesModal({
       current_score: "",
       proposed_score: "",
       reason: "",
+      attachment_data: "",
+      attachment_name: "",
+      attachment_type: "",
     });
     setActiveTab("list");
   };
@@ -560,6 +606,24 @@ export default function QueriesModal({
                           <span className="query-reason-label">Supervisor Justification:</span>
                           <p>{q.reason}</p>
                           <span className="query-author">Submitted by: {q.requested_by}</span>
+                          {q.attachment_data && (
+                            <div className="query-attachment-row" style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "8px", background: "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                              <Paperclip size={14} color="#0284c7" />
+                              <span style={{ fontSize: "12px", fontWeight: "600", color: "#1e293b" }}>
+                                Attachment: {q.attachment_name || "Supporting Document"}
+                              </span>
+                              <a
+                                href={q.attachment_data}
+                                download={q.attachment_name || "supporting_document"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-secondary btn-xs"
+                                style={{ marginLeft: "auto", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                              >
+                                <Download size={12} /> View / Download
+                              </a>
+                            </div>
+                          )}
                         </div>
 
                         {/* RESOLUTION DETAILS */}
@@ -737,6 +801,52 @@ export default function QueriesModal({
                       onChange={(e) => setQueryForm({ ...queryForm, reason: e.target.value })}
                       required
                     />
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: "14px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "700" }}>
+                      <Paperclip size={14} color="#0284c7" />
+                      <span>Attach Supporting Document (Optional: Exam Script Scan, Broadsheet Excerpt, Petition PDF / Image)</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleAttachmentChange}
+                      style={{ marginTop: "6px", fontSize: "13px" }}
+                    />
+                    {queryForm.attachment_name && (
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          background: "#ecfdf5",
+                          border: "1px solid #a7f3d0",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <FileText size={16} color="#059669" />
+                        <span style={{ fontSize: "12px", fontWeight: "600", color: "#065f46" }}>
+                          {queryForm.attachment_name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRemoveAttachment}
+                          style={{
+                            marginLeft: "auto",
+                            background: "none",
+                            border: "none",
+                            color: "#dc2626",
+                            cursor: "pointer",
+                          }}
+                          title="Remove attached file"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "14px" }}>
@@ -1356,6 +1466,42 @@ export default function QueriesModal({
                     <p><strong>Proposed Mark:</strong> <span style={{ color: "#16a34a", fontWeight: "700" }}>{selectedQueryToResolve.proposed_score} Marks</span></p>
                     <p><strong>Supervisor Justification:</strong> {selectedQueryToResolve.reason}</p>
                     <p><strong>Requested By:</strong> {selectedQueryToResolve.requested_by}</p>
+                    {selectedQueryToResolve.attachment_data && (
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          padding: "10px 14px",
+                          background: "#f0f9ff",
+                          border: "1px solid #bae6fd",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: "#0369a1", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <Paperclip size={15} /> Attached Document: {selectedQueryToResolve.attachment_name || "Supporting Document"}
+                          </span>
+                          <a
+                            href={selectedQueryToResolve.attachment_data}
+                            download={selectedQueryToResolve.attachment_name || "supporting_document"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary btn-xs"
+                            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                          >
+                            <Download size={12} /> Preview / Download Attachment
+                          </a>
+                        </div>
+                        {selectedQueryToResolve.attachment_type?.startsWith("image/") && (
+                          <div style={{ marginTop: "10px", maxHeight: "250px", overflow: "hidden", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
+                            <img
+                              src={selectedQueryToResolve.attachment_data}
+                              alt="Attached Script / Broadsheet"
+                              style={{ width: "100%", maxHeight: "250px", objectFit: "contain", background: "#f8fafc" }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">

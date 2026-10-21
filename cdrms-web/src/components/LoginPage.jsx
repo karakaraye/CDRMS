@@ -25,9 +25,9 @@ import ForgotPasswordModal from "./ForgotPasswordModal";
 
 export const FACULTY_ADMIN_DEPT = {
   id: "all",
-  name: "Faculty Deanery & Administration",
+  name: "Faculty System Administration",
   shortName: "Faculty Administration",
-  code: "DEAN",
+  code: "ADMIN",
   hasPartTime: false,
   programs: ["All"],
   description: "Universal administrative access across all 5 departments, courses, and students simultaneously.",
@@ -246,7 +246,7 @@ export default function LoginPage({ onLoginSuccess }) {
           <div className="gateway-section-intro">
             <h2>Select Academic Department or Administrative Access</h2>
             <p>
-              Choose your department or sign in as Faculty Administrator / Dean to view and manage examination records.
+              Choose your department or sign in as Faculty Administrator to view and manage examination records.
             </p>
           </div>
 
@@ -310,7 +310,7 @@ export default function LoginPage({ onLoginSuccess }) {
                 <div className="dept-icon-wrapper" style={{ background: "#0284c7", color: "#ffffff" }}>
                   <ShieldCheck size={26} />
                 </div>
-                <div className="dept-code-tag" style={{ background: "#e0f2fe", color: "#0369a1" }}>DEAN</div>
+                <div className="dept-code-tag" style={{ background: "#e0f2fe", color: "#0369a1" }}>ADMIN</div>
               </div>
 
               <div className="dept-card-body">
@@ -324,7 +324,7 @@ export default function LoginPage({ onLoginSuccess }) {
                   <span>All 5 Departments & Programs</span>
                 </div>
                 <div className="dept-select-action">
-                  <span>Sign In as Dean / Admin</span>
+                  <span>Sign In as System Admin</span>
                   <ChevronRight size={16} />
                 </div>
               </div>

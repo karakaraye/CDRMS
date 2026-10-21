@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, User, Phone, Mail, MapPin, Building, Calendar, Save } from "lucide-react";
+import { X, User, Phone, Mail, MapPin, Building, Calendar, Save, Lock } from "lucide-react";
 import { DEPARTMENTS } from "../services/auth";
 
 export default function StudentModal({
@@ -9,8 +9,19 @@ export default function StudentModal({
   studentToEdit,
   currentUser,
 }) {
-  const defaultDept = currentUser?.department || "Department of Management";
-  const defaultProg = currentUser?.program && currentUser.program !== "All" ? currentUser.program : "Full-Time";
+  const isDeptFixed = Boolean(
+    currentUser?.department &&
+    currentUser.department !== "All Departments" &&
+    currentUser.departmentId !== "all"
+  );
+
+  const defaultDept = isDeptFixed
+    ? currentUser.department
+    : (studentToEdit?.department || currentUser?.department || "Department of Management");
+
+  const defaultProg = currentUser?.program && currentUser.program !== "All"
+    ? currentUser.program
+    : "Full-Time";
 
   const [formData, setFormData] = useState({
     matric_no: "",
@@ -54,7 +65,7 @@ export default function StudentModal({
         state_of_origin: studentToEdit.state_of_origin || "",
         lga: studentToEdit.lga || "",
         faculty: studentToEdit.faculty || "Management Sciences",
-        department: studentToEdit.department || "Management",
+        department: isDeptFixed ? currentUser.department : (studentToEdit.department || defaultDept),
         entry_year: studentToEdit.entry_year || "2022",
       });
     } else {
@@ -75,12 +86,12 @@ export default function StudentModal({
         state_of_origin: "",
         lga: "",
         faculty: "Management Sciences",
-        department: defaultDept,
+        department: isDeptFixed ? currentUser.department : defaultDept,
         entry_year: "2022",
       });
     }
     setError("");
-  }, [studentToEdit, isOpen, defaultDept, defaultProg]);
+  }, [studentToEdit, isOpen, defaultDept, defaultProg, isDeptFixed, currentUser]);
 
   if (!isOpen) return null;
 
@@ -91,20 +102,18 @@ export default function StudentModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.matric_no.trim()) {
-      setError("Matriculation Number is required.");
-      return;
-    }
-    if (!formData.surname.trim() && !formData.firstname.trim()) {
-      setError("Please provide at least a Surname or First Name.");
+    if (!formData.surname.trim() || !formData.firstname.trim()) {
+      setError("Please provide both Surname and First Name (Primary Student Identity).");
       return;
     }
 
-    const fullname = `${formData.surname.trim()} ${formData.firstname.trim()} ${formData.other_name.trim()}`.trim();
+    const fullname = `${formData.surname.trim().toUpperCase()} ${formData.firstname.trim()} ${formData.other_name.trim()}`.trim();
 
     onSave({
       ...(studentToEdit ? { id: studentToEdit.id } : {}),
       ...formData,
+      matric_no: formData.matric_no.trim() || "",
+      department: isDeptFixed ? currentUser.department : formData.department,
       fullname,
     });
     onClose();
@@ -127,102 +136,11 @@ export default function StudentModal({
 
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-sections-container">
-            {/* SECTION 1: ACADEMIC DETAILS */}
+            {/* SECTION 1: PRIMARY IDENTIFICATION & ACADEMIC INFORMATION */}
             <div className="form-section">
-              <h5 className="form-section-heading">Academic Information</h5>
-              <div className="form-row-3">
-                <div className="form-group">
-                  <label>Matric No *</label>
-                  <input
-                    type="text"
-                    name="matric_no"
-                    value={formData.matric_no}
-                    onChange={handleChange}
-                    placeholder="e.g. U2022/0296"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Program / Mode *</label>
-                  <select
-                    name="student_type"
-                    value={formData.student_type}
-                    onChange={handleChange}
-                    disabled={formData.department !== "Department of Management" && formData.department !== "Management"}
-                  >
-                    <option value="Full-Time">Full-Time</option>
-                    {(formData.department === "Department of Management" || formData.department === "Management") && (
-                      <option value="Part-Time">Part-Time</option>
-                    )}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Batch / Set</label>
-                  <input
-                    type="text"
-                    name="batch"
-                    value={formData.batch}
-                    onChange={handleChange}
-                    placeholder="e.g. U2022"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row-3">
-                <div className="form-group">
-                  <label>Faculty</label>
-                  <input
-                    type="text"
-                    name="faculty"
-                    value={formData.faculty}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Department *</label>
-                  <select
-                    name="department"
-                    value={formData.department}
-                    onChange={(e) => {
-                      const newDept = e.target.value;
-                      const hasPT = newDept === "Department of Management" || newDept === "Management";
-                      setFormData((prev) => ({
-                        ...prev,
-                        department: newDept,
-                        student_type: hasPT ? prev.student_type : "Full-Time",
-                      }));
-                    }}
-                  >
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d.id} value={d.name}>
-                        {d.name} {d.hasPartTime ? "(FT & PT)" : "(Full-Time Only)"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>
-                    Entry Year
-                    {formData.entry_year && !isNaN(parseInt(formData.entry_year)) && (
-                      <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: "700", marginLeft: "6px" }}>
-                        (100L: {formData.entry_year}/{parseInt(formData.entry_year) + 1} Session)
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    name="entry_year"
-                    value={formData.entry_year}
-                    onChange={handleChange}
-                    placeholder="e.g. 2022"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 2: BIODATA */}
-            <div className="form-section">
-              <h5 className="form-section-heading">Personal Biodata</h5>
+              <h5 className="form-section-heading">Student Identification & Academic Placement</h5>
+              
+              {/* ROW 1: NAMES (Primary Key) */}
               <div className="form-row-3">
                 <div className="form-group">
                   <label>Surname *</label>
@@ -253,10 +171,125 @@ export default function StudentModal({
                     name="other_name"
                     value={formData.other_name}
                     onChange={handleChange}
+                    placeholder="e.g. Tamuno"
                   />
                 </div>
               </div>
 
+              {/* ROW 2: MATRIC NO, ENTRY YEAR (IMMEDIATE AT TOP), BATCH */}
+              <div className="form-row-3">
+                <div className="form-group">
+                  <label>Matric No <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "normal" }}>(Optional)</span></label>
+                  <input
+                    type="text"
+                    name="matric_no"
+                    value={formData.matric_no}
+                    onChange={handleChange}
+                    placeholder="e.g. U2022/0296 (Leave blank if pending)"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>
+                    Entry Year *
+                    {formData.entry_year && !isNaN(parseInt(formData.entry_year)) && (
+                      <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: "700", marginLeft: "6px" }}>
+                        (100L: {formData.entry_year}/{parseInt(formData.entry_year) + 1})
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    name="entry_year"
+                    value={formData.entry_year}
+                    onChange={handleChange}
+                    placeholder="e.g. 2022"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Batch / Set</label>
+                  <input
+                    type="text"
+                    name="batch"
+                    value={formData.batch}
+                    onChange={handleChange}
+                    placeholder="e.g. U2022"
+                  />
+                </div>
+              </div>
+
+              {/* ROW 3: DEPARTMENT (FIXED TO LOGGED-IN USER), PROGRAM, FACULTY */}
+              <div className="form-row-3">
+                <div className="form-group">
+                  <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>Department *</span>
+                    {isDeptFixed && (
+                      <span style={{ fontSize: "10px", color: "#0369a1", background: "#e0f2fe", padding: "1px 6px", borderRadius: "4px", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                        <Lock size={10} /> Fixed to your login
+                      </span>
+                    )}
+                  </label>
+                  {isDeptFixed ? (
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      disabled
+                      style={{ background: "#f1f5f9", color: "#0f172a", fontWeight: "600", cursor: "not-allowed" }}
+                    />
+                  ) : (
+                    <select
+                      name="department"
+                      value={formData.department}
+                      onChange={(e) => {
+                        const newDept = e.target.value;
+                        const hasPT = newDept === "Department of Management" || newDept === "Management";
+                        setFormData((prev) => ({
+                          ...prev,
+                          department: newDept,
+                          student_type: hasPT ? prev.student_type : "Full-Time",
+                        }));
+                      }}
+                    >
+                      {DEPARTMENTS.map((d) => (
+                        <option key={d.id} value={d.name}>
+                          {d.name} {d.hasPartTime ? "(FT & PT)" : "(Full-Time Only)"}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Program / Mode *</label>
+                  <select
+                    name="student_type"
+                    value={formData.student_type}
+                    onChange={handleChange}
+                    disabled={formData.department !== "Department of Management" && formData.department !== "Management"}
+                  >
+                    <option value="Full-Time">Full-Time</option>
+                    {(formData.department === "Department of Management" || formData.department === "Management") && (
+                      <option value="Part-Time">Part-Time</option>
+                    )}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Faculty</label>
+                  <input
+                    type="text"
+                    name="faculty"
+                    value={formData.faculty}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: BIODATA */}
+            <div className="form-section">
+              <h5 className="form-section-heading">Personal Biodata</h5>
               <div className="form-row-3">
                 <div className="form-group">
                   <label>Sex</label>
