@@ -305,12 +305,36 @@ export function getUsersForTrack(deptId, program) {
 const STORAGE_KEY_AUTH = "cdrms_auth_session";
 const STORAGE_KEY_USER_CREDS = "cdrms_user_credentials";
 const STORAGE_KEY_RESET_REQUESTS = "cdrms_password_reset_requests";
+const CREDS_RESET_VERSION_KEY = "cdrms_creds_revert_version";
+const CURRENT_CREDS_REVERT_VERSION = "2026_revert_original_all";
 
 class AuthService {
   constructor() {
+    // Revert all customized passwords back to original default ("password123") across all user devices
+    if (typeof localStorage !== "undefined") {
+      try {
+        if (localStorage.getItem(CREDS_RESET_VERSION_KEY) !== CURRENT_CREDS_REVERT_VERSION) {
+          localStorage.removeItem(STORAGE_KEY_USER_CREDS);
+          localStorage.removeItem(STORAGE_KEY_RESET_REQUESTS);
+          localStorage.setItem(CREDS_RESET_VERSION_KEY, CURRENT_CREDS_REVERT_VERSION);
+        }
+      } catch (e) {
+        console.error("Error clearing old passwords:", e);
+      }
+    }
+
     this._credentialsCache = null;
     this._resetRequestsCache = null;
     this.currentUser = this._loadUser();
+  }
+
+  resetAllPasswordsToDefault() {
+    this._credentialsCache = {};
+    this._resetRequestsCache = [];
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY_USER_CREDS);
+      localStorage.removeItem(STORAGE_KEY_RESET_REQUESTS);
+    }
   }
 
   _getUserCredentials() {

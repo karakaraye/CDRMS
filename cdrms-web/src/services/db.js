@@ -24,147 +24,8 @@ const STORAGE_KEY_RESULTS = "cdrms_results_data";
 const STORAGE_KEY_QUERIES = "cdrms_result_queries";
 const STORAGE_KEY_AUDIT = "cdrms_audit_logs";
 
-// Seed initial student records (including existing records from local db)
-const INITIAL_STUDENTS = [
-  {
-    id: "1",
-    matric_no: "U2022/0296",
-    surname: "WARI-SYLVA",
-    firstname: "HIMSON",
-    other_name: "",
-    fullname: "WARI-SYLVA HIMSON",
-    batch: "U2022",
-    student_type: "Part-Time",
-    dob: "2000-05-14",
-    sex: "Male",
-    marital_status: "Single",
-    gsm: "08012345678",
-    sponsor_gsm: "08087654321",
-    guardian_rel: "Parent",
-    email: "wari.sylva@uniport.edu.ng",
-    state_of_origin: "Rivers",
-    lga: "Port Harcourt",
-    faculty: "Management Sciences",
-    department: "Department of Management",
-    entry_year: "2022",
-    passport_path: ""
-  },
-  {
-    id: "2",
-    matric_no: "2002",
-    surname: "KARA",
-    firstname: "23",
-    other_name: "",
-    fullname: "KARA 23",
-    batch: "U2022",
-    student_type: "Full-Time",
-    dob: "2001-08-20",
-    sex: "Female",
-    marital_status: "Single",
-    gsm: "08123456789",
-    sponsor_gsm: "08198765432",
-    guardian_rel: "Parent",
-    email: "kara23@uniport.edu.ng",
-    state_of_origin: "Rivers",
-    lga: "Obio-Akpor",
-    faculty: "Management Sciences",
-    department: "Department of Management",
-    entry_year: "2022",
-    passport_path: ""
-  },
-  {
-    id: "3",
-    matric_no: "PM/2022/1001",
-    surname: "OKONKWO",
-    firstname: "EBUKA",
-    other_name: "DAVID",
-    fullname: "OKONKWO EBUKA DAVID",
-    batch: "U2022",
-    student_type: "Full-Time",
-    dob: "2001-04-12",
-    sex: "Male",
-    marital_status: "Single",
-    gsm: "08031122334",
-    sponsor_gsm: "08039988776",
-    guardian_rel: "Parent",
-    email: "ebuka.okonkwo@uniport.edu.ng",
-    state_of_origin: "Anambra",
-    lga: "Awka North",
-    faculty: "Management Sciences",
-    department: "Department of Project Management",
-    entry_year: "2022",
-    passport_path: ""
-  },
-  {
-    id: "4",
-    matric_no: "ER/2022/2045",
-    surname: "AMADI",
-    firstname: "CHIOMA",
-    other_name: "BLESSING",
-    fullname: "AMADI CHIOMA BLESSING",
-    batch: "U2022",
-    student_type: "Full-Time",
-    dob: "2002-09-18",
-    sex: "Female",
-    marital_status: "Single",
-    gsm: "08145566778",
-    sponsor_gsm: "08149988112",
-    guardian_rel: "Parent",
-    email: "chioma.amadi@uniport.edu.ng",
-    state_of_origin: "Rivers",
-    lga: "Ikwerre",
-    faculty: "Management Sciences",
-    department: "Department of Employee Relations and Human Resource Management",
-    entry_year: "2022",
-    passport_path: ""
-  },
-  {
-    id: "5",
-    matric_no: "IE/2022/3012",
-    surname: "BRIGGS",
-    firstname: "TAMUNO",
-    other_name: "TONYE",
-    fullname: "BRIGGS TAMUNO TONYE",
-    batch: "U2022",
-    student_type: "Full-Time",
-    dob: "2001-11-05",
-    sex: "Male",
-    marital_status: "Single",
-    gsm: "08051234889",
-    sponsor_gsm: "08059876543",
-    guardian_rel: "Guardian",
-    email: "tamuno.briggs@uniport.edu.ng",
-    state_of_origin: "Rivers",
-    lga: "Akuku-Toru",
-    faculty: "Management Sciences",
-    department: "Department of Innovation and Entrepreneurship Management",
-    entry_year: "2022",
-    passport_path: ""
-  },
-  {
-    id: "6",
-    matric_no: "PR/2022/4088",
-    surname: "DAN-JUMBO",
-    firstname: "IBIERE",
-    other_name: "GRACE",
-    fullname: "DAN-JUMBO IBIERE GRACE",
-    batch: "U2022",
-    student_type: "Full-Time",
-    dob: "2002-02-28",
-    sex: "Female",
-    marital_status: "Single",
-    gsm: "07062233445",
-    sponsor_gsm: "07068877665",
-    guardian_rel: "Parent",
-    email: "ibiere.danjumbo@uniport.edu.ng",
-    state_of_origin: "Rivers",
-    lga: "Bonny",
-    faculty: "Management Sciences",
-    department: "Department of Procurement Management",
-    entry_year: "2022",
-    passport_path: ""
-  }
-];
+// Clean slate for testing: no hardcoded dummy student entries
+const INITIAL_STUDENTS = [];
 
 // Build initial courses with IDs
 const INITIAL_COURSES = ALL_INITIAL_COURSES.map((c, idx) => ({
@@ -172,9 +33,27 @@ const INITIAL_COURSES = ALL_INITIAL_COURSES.map((c, idx) => ({
   ...c
 }));
 
+const DATA_CLEAN_VERSION_KEY = "cdrms_data_clean_version";
+const CURRENT_DATA_CLEAN_VERSION = "2026_clean_testing_slate";
+
 class DataStore {
   constructor() {
-    this.students = this._load(STORAGE_KEY_STUDENTS, INITIAL_STUDENTS);
+    // Automatically purge old test student records and results across all user devices
+    if (typeof localStorage !== "undefined") {
+      try {
+        if (localStorage.getItem(DATA_CLEAN_VERSION_KEY) !== CURRENT_DATA_CLEAN_VERSION) {
+          localStorage.removeItem(STORAGE_KEY_STUDENTS);
+          localStorage.removeItem(STORAGE_KEY_RESULTS);
+          localStorage.removeItem(STORAGE_KEY_QUERIES);
+          localStorage.removeItem(STORAGE_KEY_AUDIT);
+          localStorage.setItem(DATA_CLEAN_VERSION_KEY, CURRENT_DATA_CLEAN_VERSION);
+        }
+      } catch (e) {
+        console.error("Error checking clean version:", e);
+      }
+    }
+
+    this.students = this._load(STORAGE_KEY_STUDENTS, []);
     this.courses = this._load(STORAGE_KEY_COURSES, INITIAL_COURSES);
     this._ensureCourses();
     this.results = this._load(STORAGE_KEY_RESULTS, []);
@@ -674,7 +553,7 @@ class DataStore {
   // CLOUD SYNC HELPERS
   // -------------------------------------------------------------
   setAllFromCloud({ students, courses, results, queries, auditLogs }) {
-    if (students && Array.isArray(students) && students.length > 0) {
+    if (students && Array.isArray(students)) {
       this.students = students.map(s => ({ ...s, id: String(s.id) }));
       this._save(STORAGE_KEY_STUDENTS, this.students);
     }
@@ -682,15 +561,15 @@ class DataStore {
       this.courses = courses.map(c => ({ ...c, id: String(c.id) }));
       this._save(STORAGE_KEY_COURSES, this.courses);
     }
-    if (results && Array.isArray(results) && results.length > 0) {
+    if (results && Array.isArray(results)) {
       this.results = results.map(r => ({ ...r, id: String(r.id) }));
       this._save(STORAGE_KEY_RESULTS, this.results);
     }
-    if (queries && Array.isArray(queries) && queries.length > 0) {
+    if (queries && Array.isArray(queries)) {
       this.queries = queries.map(q => ({ ...q, id: String(q.id) }));
       this._save(STORAGE_KEY_QUERIES, this.queries);
     }
-    if (auditLogs && Array.isArray(auditLogs) && auditLogs.length > 0) {
+    if (auditLogs && Array.isArray(auditLogs)) {
       this.auditLogs = auditLogs.map(a => ({
         ...a,
         ...(a.details || {}),
